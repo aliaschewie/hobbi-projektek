@@ -49,23 +49,56 @@ def sor_html(sor):
     return "".join(darabok)
 
 
+BETU = ("-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,"
+        "Helvetica,Arial,sans-serif")
+MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+
+
+def gomb_html(felirat, cim):
+    """Kattintható gomb. Táblázattal, mert a levelezőkliensek egy része a
+    CSS-t megnyirbálja, de a táblázatos cellakitöltést mind ismeri."""
+    return (
+        '<table role="presentation" cellspacing="0" cellpadding="0" '
+        'style="margin:4px 0 20px"><tr><td '
+        'style="background:#1a73e8;border-radius:6px">'
+        f'<a href="{html.escape(cim, quote=True)}" '
+        f'style="display:inline-block;padding:11px 22px;color:#ffffff;'
+        f'font-family:{BETU};font-size:15px;font-weight:600;'
+        f'text-decoration:none">{html.escape(felirat)} &rarr;</a>'
+        '</td></tr></table>'
+    )
+
+
 def torzs_html(szoveg):
-    sorok = []
+    darabok, sorok = [], []
+
+    def sorok_urites():
+        if sorok:
+            darabok.append(
+                f'<div style="font-family:{MONO};font-size:13px;'
+                f'line-height:1.6;color:#202124">' + "<br>".join(sorok) +
+                '</div>')
+            sorok.clear()
+
     for sor in szoveg.split("\n"):
-        # a "jegy: <url>" sorból rövid, kattintható gomb-szerű link lesz
-        jegy = re.match(r"^(\s*)jegy:\s*(\S+)\s*$", sor)
-        if jegy:
-            cim = html.escape(jegy.group(2), quote=True)
-            sorok.append(f'{"&nbsp;" * len(jegy.group(1))}'
-                         f'<a href="{cim}" style="color:#1a73e8">jegyvásárlás →</a>')
+        # "=== Cím ===" -> fejléc
+        fejlec = re.match(r"^===\s*(.*?)\s*===$", sor)
+        if fejlec:
+            sorok_urites()
+            darabok.append(
+                f'<div style="font-family:{BETU};font-size:17px;'
+                f'font-weight:600;color:#202124;margin:0 0 14px">'
+                f'{html.escape(fejlec.group(1))}</div>')
+            continue
+        # ">> Felirat: https://…" -> gomb
+        gomb = re.match(r"^>>\s*(.+?):\s*(https?://\S+)\s*$", sor)
+        if gomb:
+            sorok_urites()
+            darabok.append(gomb_html(gomb.group(1), gomb.group(2)))
             continue
         sorok.append(sor_html(sor).replace("  ", "&nbsp;&nbsp;"))
-    return (
-        '<div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
-        'monospace;font-size:13px;line-height:1.55;color:#202124">'
-        + "<br>".join(sorok) +
-        '</div>'
-    )
+    sorok_urites()
+    return "".join(darabok)
 
 
 def main():

@@ -88,10 +88,6 @@ FILM_SZURO = ["Odüsszeia"]
 
 JELLEMZO_SZURO = ["IMAX, feliratos"]
 
-# Minden időpont mellé odategye-e a közvetlen jegyvásárlási linkjét (1/0).
-# Bekapcsolva az értesítés hosszabb, de egy kattintással a pénztárnál vagy.
-JEGYLINK = 1
-
 
 # --- 4. Finomhangolás (ritkán kell hozzányúlni) ----------------------------
 
@@ -135,13 +131,6 @@ JELLEMZOK = {
     "3d": "3D", "dubbed": "szinkronos", "subbed": "feliratos",
     "original-lang": "eredeti nyelven", "sing-along": "sing-along",
 }
-# magyar címke -> nyers API-címke, a `filtered=` linkparaméterhez
-CIMKE_NYERS = {}
-
-# Ezeket ismeri az oldal `filtered=` paramétere. A hosszabb nevek elöl, hogy
-# a "4dx-3d" ne akadjon el a "4dx"-en.
-FORMATUM_CIMKEK = ("imax", "4dx-3d", "4dx", "screenx", "dolby-cinema",
-                   "vip", "kids", "3d")
 
 TIMEOUT = 30
 RETRIES = 3
@@ -155,8 +144,6 @@ def ekezettelen(s):
     return "".join(c for c in n if not unicodedata.combining(c))
 
 
-CIMKE_NYERS.update({ekezettelen(cimke): nyers
-                    for nyers, cimke in JELLEMZOK.items()})
 
 
 def url_ertelmez(url):
@@ -265,7 +252,6 @@ BASE = f"{CFG['host']}/hu/data-api-service/v1/quickbook/{CFG['site']}"
 TELJES_MIN = egesz("FULL_MIN_EVENTS", FULL_MIN_EVENTS)
 SZORVANY_IS = egesz("NOTIFY_PARTIAL", NOTIFY_PARTIAL) == 1
 HORIZONT = egesz("HORIZON_DAYS", HORIZON_DAYS)
-JEGYLINKEK = egesz("JEGYLINK", JEGYLINK) == 1
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 KERES_SZUNET = float(os.environ.get("REQUEST_DELAY", "0.7"))
@@ -446,46 +432,20 @@ def film_vetitesek():
     return talalt, filmek_info, napok, film_osszes
 
 
-def szuro_nyers_cimke():
-    """Az egyetlen érték, ami a link `filtered=` paraméterébe kerülhet.
-
-    Az oldal ezt a paramétert szűken értelmezi: csak a vetítési FORMÁTUMOT
-    ismeri (imax, 4dx, screenx, …), és csak egyet belőle. A nyelvet
-    (feliratos/szinkronos) nem — a `filtered=imax,subbed` alakra egyszerűen
-    nem szűr semmire. Ezért a formátumot tesszük be, a nyelvet nem: a listában
-    az úgyis egy pillantás.
-
-    Az értesítés TARTALMA ettől függetlenül a teljes JELLEMZO_SZURO-t
-    figyelembe veszi — ez a szűkítés csak a linkre vonatkozik.
-    """
-    if not CFG["jellemzo_kulcs"]:
-        return None
-    # 1. kör: pontos egyezés ("IMAX" vagy "imax")
-    for felt in CFG["jellemzo_kulcs"][0]:
-        nyers = felt if felt in JELLEMZOK else CIMKE_NYERS.get(felt)
-        if nyers in FORMATUM_CIMKEK:
-            return nyers
-    # 2. kör: a feltétel tartalmazza a formátumot ("ScreenX terem" -> screenx)
-    for felt in CFG["jellemzo_kulcs"][0]:
-        for formatum in FORMATUM_CIMKEK:
-            if formatum in felt:
-                return formatum
-    return None
-
-
 def film_szuro_link(film_id, datum=None):
-    """A mozi jegyvásárló oldala, eleve a filmre és a jellemzőre szűrve.
+    """A mozi jegyvásárló oldala, a filmre és a napra állítva.
 
-    Ilyen alakban, ahogy a böngésző címsorában is megjelenik:
       /cinemas/arena/1132#/buy-tickets-by-cinema
-        ?in-cinema=1132&at=2026-08-02&for-movie=7460d2r&filtered=imax&view-mode=list
+        ?in-cinema=1132&at=2026-08-05&for-movie=7460d2r&view-mode=list
 
-    A `filtered` egyetlen formátumot vesz fel. Vesszős felsorolásra
-    (`imax,subbed`) nem szűr semmire — kipróbálva.
+    Szándékosan NINCS benne `filtered=` (imax, 4dx, …). Az oldal ugyan
+    kiírja a címsorba, amikor kézzel kapcsolod be a formátumszűrőt, de
+    betöltéskor nem olvassa vissza: a linkre kattintva a film ÖSSZES aznapi
+    vetítése látszik, a szűrő kikapcsolva. Kipróbálva, nem a paraméter
+    alakján múlik. A `for-movie` és az `at` viszont működik, azok maradnak.
 
-    A `#` utáni rész a böngészőben futó alkalmazásnak szól, a szerver nem is
-    látja. Ha a Cinema City valaha átalakítja, az értesítésben ott marad
-    mellette a film saját oldala és a vetítésenkénti közvetlen jegylink is.
+    A formátumot úgysem kell keresni: az értesítés sorai pontosan megmondják
+    a napot, az órát és a termet.
     """
     if not film_id:
         return CFG["link"]
@@ -493,16 +453,19 @@ def film_szuro_link(film_id, datum=None):
     if datum:
         reszek.append(f"at={datum}")
     reszek.append(f"for-movie={film_id}")
-    nyers = szuro_nyers_cimke()
-    if nyers:
-        reszek.append(f"filtered={nyers}")
     reszek.append("view-mode=list")
     return (f"{CFG['host']}/cinemas/{CFG['nev']}/{CFG['szam']}"
             f"#/buy-tickets-by-cinema?" + "&".join(reszek))
 
 
-def vetites_sor(info, jegylink=None):
-    """Egy vetítés sora; JEGYLINK esetén a jegyvásárlási link külön sorban."""
+def vetites_sor(info):
+    """Egy vetítés sora: mikor, hol, milyen formátumban.
+
+    Vetítésenkénti jegylink szándékosan nincs. Az API ad ilyet
+    (`bookingRouterLaunchLink`), de az a `tickets.rel.cinemacity.hu` mögé
+    dob át, amit Cloudflare véd — egy levélből érkező hideg kattintást
+    robotnak néz és blokkol. Helyette naponként egy listalink megy ki.
+    """
     try:
         d, t = info["kezdes"].split("T")
         mikor = f"{nap_cimke(d)} {t[:5]}"
@@ -510,11 +473,7 @@ def vetites_sor(info, jegylink=None):
         mikor = info["kezdes"]
     jell = f"  ({', '.join(info['jellemzok'])})" if info["jellemzok"] else ""
     terem = f"  {info['terem']}" if info["terem"] else ""
-    sor = f"  {mikor}{terem}{jell}"
-    mutassuk = JEGYLINKEK if jegylink is None else jegylink
-    if mutassuk and info.get("link"):
-        sor += f"\n      jegy: {info['link']}"
-    return sor
+    return f"  {mikor}{terem}{jell}"
 
 
 def mult_nyeses_vetitesek(vetitesek):
@@ -536,17 +495,23 @@ def film_mod(args):
     filmnevek = sorted(f["nev"] for f in filmek_info.values())
     cimke = " / ".join(filmnevek) if filmnevek else " / ".join(CFG["szuro"])
 
-    def labjegyzet(vonatkozo):
-        """Linkek az értesítés aljára: szűrt lista, film oldala."""
+    def gomb(vonatkozo):
+        """A levél tetejére kerülő gomb sora.
+
+        A `>>` előtag jelzi az e-mail-küldőnek, hogy ebből gombot csináljon;
+        sima szövegként is olvasható marad. Az `at=` a legkorábbi új időpont
+        napjára áll, hogy a lista mindjárt ott nyíljon.
+        """
         fid = next((v.get("film_id") for v in vonatkozo.values()
                     if v.get("film_id")), None) or next(iter(filmek_info), None)
-        elso_datum = min((v["kezdes"][:10] for v in vonatkozo.values()
-                          if v.get("kezdes")), default=None)
-        sorok = [film_szuro_link(fid, elso_datum)]
-        film_oldal = (filmek_info.get(fid) or {}).get("link")
-        if film_oldal:
-            sorok.append(film_oldal)
-        return sorok
+        elso = min((v["kezdes"][:10] for v in vonatkozo.values()
+                    if v.get("kezdes")), default=None)
+        return f">> Ugrás a moziműsorra: {film_szuro_link(fid, elso)}"
+
+    def film_oldal_sor():
+        fid = next(iter(filmek_info), None)
+        cim = (filmek_info.get(fid) or {}).get("link")
+        return [f"A film oldala: {cim}"] if cim else []
     jcimke = f" [{' vagy '.join(CFG['jellemzo'])}]" if CFG["jellemzo"] else ""
     # hány vetítést dobott el a jellemző-szűrő
     kiszurt = film_osszes - len(mostani)
@@ -566,12 +531,16 @@ def film_mod(args):
         return 0
 
     if ujak:
-        sorok = [f"=== {cimke}: {len(ujak)} új időpont{jcimke} ==="]
+        sorok = [f"=== {cimke}: {len(ujak)} új időpont{jcimke} ===",
+                 "",
+                 gomb(ujak),
+                 "",
+                 "Új előadások:"]
         sorok += [vetites_sor(ujak[k])
                   for k in sorted(ujak, key=lambda k: ujak[k]["kezdes"])]
         sorok += ["", f"Összesen {len(mostani)} illeszkedő időpont a következő "
                       f"{(date.fromisoformat(max(napok)) - date.today()).days} napban.",
-                  ""] + labjegyzet(ujak)
+                  ""] + film_oldal_sor()
         kiir(sorok)
     elif args.force_report:
         print(f"[jelentes] {cimke}{jcimke}: {len(mostani)} idopont jelenleg")
