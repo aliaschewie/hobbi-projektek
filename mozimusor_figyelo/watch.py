@@ -23,7 +23,11 @@ Csak stdlib, nincs pip függőség.
 #
 # False esetén ez a szkript azonnal kilép, egyetlen kérést sem küld, és nem
 # ír e-mailt. A többi figyelő (pl. a MOM) ettől függetlenül fut tovább.
-FIGYELD = True
+FIGYELD = False        # <-- ideiglenesen kikapcsolva (Etele fejlesztése alatt)
+
+# Visszakapcsolás: írd vissza True-ra és pushold. Gyorsabb út kód nélkül:
+# Settings > Secrets and variables > Actions > Variables > FIGYELD_CCITY = true
+# (a kitöltött változó felülírja ezt a sort, push nélkül, azonnal)
 
 # Az e-mail tárgyának előtagja, hogy egy pillantásból lásd, melyik moziról van
 # szó:  "[CCITY] Odüsszeia: 1 új időpont …"
@@ -113,6 +117,13 @@ NOTIFY_PARTIAL = 1
 # Hány napra előre nézzünk.
 HORIZON_DAYS = 60
 
+# Hány napot kérdezzünk le egyszerre. Film módban minden játszási napra kell
+# egy kérés (mert meglévő naphoz is felvehetnek új időpontot), és ezek sorban
+# futtatva percekig tartottak. Párhuzamosan 3-4 szálon másodpercek alatt
+# megvan, és ez még mindig szelíd terhelés — nem támadás, csak nem várunk
+# fölöslegesen. 1-re állítva visszakapod a régi, szigorúan soros működést.
+PARHUZAM = 4
+
 # ===========================================================================
 #   Innentől nem kell hozzányúlni.
 # ===========================================================================
@@ -127,7 +138,10 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
+
+LEKERDEZESEK = 0        # hány API-hívást küldtünk ki (a záró mérleghez)
 
 # A quickbook API "site ID"-ja országonként más.
 ORSZAGOK = {
@@ -150,7 +164,7 @@ JELLEMZOK = {
     "dubbed": "szinkronos", "subbed": "feliratos",
 }
 
-TIMEOUT = 30
+TIMEOUT = 20        # egy kérésre ennyit várunk (volt: 30)
 RETRIES = 3
 UA = "mozimusor-figyelo/1.0"
 NAPOK = ["hé", "ke", "sze", "csü", "pé", "szo", "va"]
@@ -283,6 +297,7 @@ HORIZONT = egesz("HORIZON_DAYS", HORIZON_DAYS)
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 KERES_SZUNET = float(os.environ.get("REQUEST_DELAY", "0.7"))
+PARHUZAMOSSAG = egesz("PARHUZAM", PARHUZAM)
 
 
 # --- HTTP -----------------------------------------------------------------
@@ -292,7 +307,7 @@ def get_json(url):
     utolso = None
     for kiserlet in range(RETRIES):
         if kiserlet:
-            time.sleep(2 ** kiserlet)
+            time.sleep(1 + kiserlet)      # 1, 2 mp (volt: 2, 4)
         try:
             req = urllib.request.Request(
                 url, headers={"User-Agent": UA, "Accept": "application/json"})
@@ -317,6 +332,29 @@ def nap_lekeres(napi_datum):
            f"/at-date/{napi_datum}?attr=&lang={CFG['lang']}")
     body = get_json(url).get("body", {})
     return body.get("films", []), body.get("events", [])
+
+
+def parhuzamos_lekeres(datumok):
+    """Több nap lekérdezése egyszerre, a napok sorrendjét megtartva.
+
+    Sorban futtatva minden nap kérése megvárja az előzőt, plusz a
+    KERES_SZUNET szünetet — hét napnál ez könnyen fél percre nő, rossz
+    válaszidőknél percekre. A szálak nem terhelik jobban a szervert
+    összességében, csak nem várakozunk fölöslegesen közben.
+    """
+    global LEKERDEZESEK
+    LEKERDEZESEK += len(datumok)
+    if not datumok:
+        return []
+    if PARHUZAMOSSAG <= 1:
+        eredmeny = []
+        for i, d in enumerate(datumok):
+            if i:
+                time.sleep(KERES_SZUNET)
+            eredmeny.append(nap_lekeres(d))
+        return eredmeny
+    with ThreadPoolExecutor(max_workers=min(PARHUZAMOSSAG, len(datumok))) as p:
+        return list(p.map(nap_lekeres, datumok))
 
 
 # --- állapot --------------------------------------------------------------
@@ -441,10 +479,9 @@ def film_vetitesek():
     filmek_info = {}          # {film_id: {"nev":..., "link":...}}
     film_osszes = 0
     napok = jatszasi_napok()
-    for i, d in enumerate(napok):
-        if i:
-            time.sleep(KERES_SZUNET)
-        filmek, esemenyek = nap_lekeres(d)
+    # Film módban MINDEN napot le kell kérdezni, mert meglévő naphoz is
+    # felvehetnek új időpontot — ezért a párhuzamosítás itt a legértékesebb.
+    for d, (filmek, esemenyek) in zip(napok, parhuzamos_lekeres(napok)):
         # a film azonosítója naponta ugyanaz, de a biztonság kedvéért naponta nézzük
         egyezo = {}
         for f in filmek:
@@ -620,17 +657,13 @@ def horizont_mod(args):
               file=sys.stderr)
         return 1
 
-    uj, lekerdezve = {}, 0
-    for d in napok:
-        elozo = regi.get(d)
-        # A már teljesnek ismert napokat nem kérdezzük újra — kérésspórolás.
-        if elozo and elozo.get("teljes"):
-            uj[d] = elozo
-            continue
-        if lekerdezve:
-            time.sleep(KERES_SZUNET)
-        filmek, esemenyek = nap_lekeres(d)
-        lekerdezve += 1
+    # A már teljesnek ismert napokat nem kérdezzük újra — kérésspórolás.
+    kell_kerdezni = [d for d in napok
+                     if not (regi.get(d) and regi[d].get("teljes"))]
+    lekerdezve = len(kell_kerdezni)
+    uj = {d: regi[d] for d in napok if d not in kell_kerdezni}
+    for d, (filmek, esemenyek) in zip(kell_kerdezni,
+                                      parhuzamos_lekeres(kell_kerdezni)):
         uj[d] = {"vetitesek": len(esemenyek), "filmek": len(filmek),
                  "teljes": len(esemenyek) >= TELJES_MIN}
 
@@ -709,7 +742,13 @@ def main():
            else f"teljes horizont (teljes nap >= {TELJES_MIN} vetítés)")
     print(f"[mozi] {CFG['nev']} / {CFG['szam']} — {mit}", file=sys.stderr)
 
-    return film_mod(args) if CFG["mod"] == "film" else horizont_mod(args)
+    kezdet = time.monotonic()
+    try:
+        return film_mod(args) if CFG["mod"] == "film" else horizont_mod(args)
+    finally:
+        # Mérünk, hogy ne tippelni kelljen, ha egyszer lassúnak tűnik.
+        print(f"[ido] {LEKERDEZESEK + 1} keres, {PARHUZAMOSSAG} szalon, "
+              f"{time.monotonic() - kezdet:.1f} mp", file=sys.stderr)
 
 
 if __name__ == "__main__":
