@@ -144,23 +144,44 @@ def url_ertelmez(url):
     return nev or szam, szam, p.netloc.rsplit(".", 1)[-1].lower()
 
 
+def env(kulcs):
+    """Env-változó értéke, üres esetén None.
+
+    FONTOS: a GitHub Actions a NEM LÉTEZŐ repo-változót is átadja, üres
+    sztringként. Az üreset ezért hiánynak tekintjük, nem felülírásnak —
+    különben egy be nem állított változó kinullázná a fenti CONFIG-ot.
+    """
+    ertek = os.environ.get(kulcs, "").strip()
+    return ertek or None
+
+
 def config_osszerak():
-    """CONFIG + env-változók egyesítése. Az env erősebb — így a GitHub
-    Actionsben a kód módosítása nélkül is át lehet állítani."""
+    """CONFIG + env-változók egyesítése. A kitöltött env erősebb — így a
+    GitHub Actionsben a kód módosítása nélkül is át lehet állítani."""
     nev, szam, orszag = MOZI_NEVE, MOZI_SZAMA, ORSZAG
-    if os.environ.get("CINEMA_URL", "").strip():
-        nev, szam, orszag = url_ertelmez(os.environ["CINEMA_URL"].strip())
-    nev = os.environ.get("MOZI_NEVE", nev)
-    szam = os.environ.get("MOZI_SZAMA", szam)
-    orszag = os.environ.get("ORSZAG", orszag).lower()
+    if env("CINEMA_URL"):
+        nev, szam, orszag = url_ertelmez(env("CINEMA_URL"))
+    nev = env("MOZI_NEVE") or nev
+    szam = env("MOZI_SZAMA") or szam
+    orszag = (env("ORSZAG") or orszag).lower()
     if orszag not in ORSZAGOK:
         raise SystemExit(f"[hiba] ismeretlen ORSZAG: {orszag!r} "
                          f"(valaszthato: {', '.join(ORSZAGOK)})")
+    if not str(szam).strip():
+        raise SystemExit("[hiba] nincs meg a mozi szama. Toltsd ki a MOZI_SZAMA "
+                         "sort a watch.py CONFIG blokkjaban, vagy allitsd be "
+                         "repo-valtozokent.")
 
-    if "FILM_SZURO" in os.environ:      # vesszővel elválasztva
-        szuro = [s.strip() for s in os.environ["FILM_SZURO"].split(",") if s.strip()]
-    else:
+    # FILM_SZURO: az üres változó itt is hiányt jelent, tehát a CONFIG marad
+    # érvényben. Ha REPO-VÁLTOZÓBÓL akarod kikapcsolni a szűrést (= minden
+    # filmre menjen), írj bele "*"-ot — az üres mező ehhez nem elég.
+    nyers = env("FILM_SZURO")
+    if nyers is None:
         szuro = [s.strip() for s in FILM_SZURO if s and s.strip()]
+    elif nyers in ("*", "-", "mind", "all"):
+        szuro = []
+    else:
+        szuro = [s.strip() for s in nyers.split(",") if s.strip()]
 
     host, site, lang = ORSZAGOK[orszag]
     return {
@@ -173,8 +194,11 @@ def config_osszerak():
 
 
 def egesz(kulcs, alap):
+    ertek = env(kulcs)
+    if ertek is None:
+        return int(alap)
     try:
-        return int(os.environ.get(kulcs, alap))
+        return int(ertek)
     except ValueError:
         return int(alap)
 
