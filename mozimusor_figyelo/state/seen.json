@@ -11,16 +11,6 @@
  ],
  "teljes_min": 15,
  "adat": {
-  "300663": {
-   "kezdes": "2026-08-01T10:00:00",
-   "film": "Odüsszeia",
-   "terem": "IMAX terem",
-   "jellemzok": [
-    "IMAX",
-    "feliratos"
-   ],
-   "link": "https://tickets.cinemacity.hu/api/order/300663?lang=hu"
-  },
   "300664": {
    "kezdes": "2026-08-03T10:00:00",
    "film": "Odüsszeia",
