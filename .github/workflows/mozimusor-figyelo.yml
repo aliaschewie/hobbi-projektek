@@ -46,6 +46,7 @@ jobs:
       MOZI_SZAMA: ${{ vars.MOZI_SZAMA }}
       FILM_SZURO: ${{ vars.FILM_SZURO }}        # üres = minden filmre megy
       JELLEMZO_SZURO: ${{ vars.JELLEMZO_SZURO }} # üres = a CONFIG érvényes
+      JEGYLINK: ${{ vars.JEGYLINK }}
       FULL_MIN_EVENTS: ${{ vars.FULL_MIN_EVENTS }}
       NOTIFY_PARTIAL: ${{ vars.NOTIFY_PARTIAL }}
       HORIZON_DAYS: ${{ vars.HORIZON_DAYS }}
@@ -68,26 +69,30 @@ jobs:
             echo "changed=no" >> "$GITHUB_OUTPUT"
           fi
 
-      # E-mail. A GitHub e-mailt küld a rád szignált issue-ról, ezért nem kell
-      # se SMTP, se app-jelszó. Rögtön le is zárjuk, hogy ne gyűljenek —
-      # az e-mail addigra már elment.
+      # E-mail. A GitHub e-mailt küld az új issue-ról, ezért nem kell se SMTP,
+      # se app-jelszó.
+      #
+      # PONTOSAN EGY LEVÉL: az issue-t se hozzá nem rendeljük senkihez, se le
+      # nem zárjuk — mindkettő külön értesítést váltana ki. Cserébe a repót
+      # figyelned kell (Watch > Custom > Issues), különben a megmaradó
+      # egyetlen levél sem érkezne meg.
+      #
+      # Az issue-k nyitva maradnak; ez egyben az értesítések naplója. Ha sok
+      # lesz, jelöld ki és zárd le őket kézzel: a saját műveletedről a GitHub
+      # nem küld e-mailt.
       - name: Értesítés e-mailben
         if: steps.run.outputs.changed == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cim=$(grep -m1 '^=== ' /tmp/out.txt | sed 's/^=== //; s/ ===$//')
-          url=$(gh issue create \
-            --title "$cim" \
-            --assignee "${{ github.repository_owner }}" \
-            --label "mozimusor" \
-            --body "$(sed -n '/^=== /,$p' /tmp/out.txt)" 2>/dev/null \
-            || gh issue create \
-                 --title "$cim" \
-                 --assignee "${{ github.repository_owner }}" \
-                 --body "$(sed -n '/^=== /,$p' /tmp/out.txt)")
+          torzs=$(sed -n '/^=== /,$p' /tmp/out.txt)
+          gh label create mozimusor --color 1D76DB \
+            --description "Mozi műsorfigyelő értesítései" 2>/dev/null || true
+          url=$(gh issue create --title "$cim" --label mozimusor --body "$torzs" \
+                2>/dev/null \
+                || gh issue create --title "$cim" --body "$torzs")
           echo "Issue: $url"
-          gh issue close "$url"
 
       # Az állapotot csak az értesítés után írjuk vissza. Így ha a fenti lépés
       # elhasal, a következő futás újrapróbálja — nem nyelünk el értesítést.
