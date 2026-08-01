@@ -1,5 +1,5 @@
 {
- "frissitve": "2026-08-01T17:02:57Z",
+ "frissitve": "2026-08-01T17:17:06Z",
  "mozi": "Etele Cinema",
  "szuro": [
   "Odüsszeia"
@@ -14,11 +14,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "01ea80ab-dd6a-4414-b76a-11b1b7400a51": {
    "kezdes": "2026-08-05T15:45:00",
@@ -27,11 +26,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "0702dd68-cf73-4398-9b90-f458c9a2a1f3": {
    "kezdes": "2026-08-04T17:15:00",
@@ -41,10 +39,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "0c717778-65b5-4ed7-9e98-fd9c876855a9": {
    "kezdes": "2026-08-03T19:15:00",
@@ -53,24 +51,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
-  },
-  "12696147-2788-4332-a283-5ab37cfa264b": {
-   "kezdes": "2026-08-01T19:15:00",
-   "film": "Odüsszeia",
-   "film_id": "8f390074-97a5-4793-ae83-89c47db5eb7c",
-   "nyelv": "feliratos",
-   "terem": "3. terem",
-   "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
-   ],
-   "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "1e816a0c-8278-4fd4-af83-b679d3c6e1a6": {
    "kezdes": "2026-08-02T19:15:00",
@@ -79,11 +63,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "24a1b9a9-41b8-4efe-b11e-07f2655425ea": {
    "kezdes": "2026-08-03T20:45:00",
@@ -93,10 +76,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "275f3d2a-7159-4900-b590-4a05f4713659": {
    "kezdes": "2026-08-04T19:15:00",
@@ -105,11 +88,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "2fff3fc6-71c0-425e-8ba0-10ae32aa5ff9": {
    "kezdes": "2026-08-01T20:45:00",
@@ -119,10 +101,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "3b36f7a4-51d1-4e4b-877d-5331ce5b2c0a": {
    "kezdes": "2026-08-04T20:45:00",
@@ -132,10 +114,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "54bb0740-2ec5-4ed4-940c-233e3c782c70": {
    "kezdes": "2026-08-02T12:15:00",
@@ -144,11 +126,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "5eef8717-04e0-4807-8a74-924ea2886c4b": {
    "kezdes": "2026-08-05T12:15:00",
@@ -157,11 +138,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "6133b897-9395-4fd5-8a32-c53ef4822612": {
    "kezdes": "2026-08-04T13:45:00",
@@ -171,10 +151,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "65287db1-f1fd-43f8-81b3-e22c995d0650": {
    "kezdes": "2026-08-04T15:45:00",
@@ -183,11 +163,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "6c9e2aad-30f6-4505-9019-fe892f686305": {
    "kezdes": "2026-08-05T20:45:00",
@@ -197,10 +176,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "879e7462-b6d7-49b7-81d2-39843e11feeb": {
    "kezdes": "2026-08-03T17:15:00",
@@ -210,10 +189,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "893bc955-d71e-49ab-a674-2f88e02fb20f": {
    "kezdes": "2026-08-03T12:15:00",
@@ -222,11 +201,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "89d255c1-0d7b-4276-b944-69f07a71aab6": {
    "kezdes": "2026-08-02T20:45:00",
@@ -236,10 +214,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "924f84f7-7041-4b6a-830c-3daaa8922bc8": {
    "kezdes": "2026-08-03T13:45:00",
@@ -249,10 +227,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "9b69c83c-1acd-4746-8919-dd5b9bd554a4": {
    "kezdes": "2026-08-05T13:45:00",
@@ -262,10 +240,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "a3decbd6-b03e-43e1-a16f-f39a1bd8b150": {
    "kezdes": "2026-08-04T12:15:00",
@@ -274,11 +252,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "b5da3922-01fc-4984-a176-fce04fef016d": {
    "kezdes": "2026-08-02T17:15:00",
@@ -288,10 +265,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "c8ad893a-5310-4870-b6d2-54caffad49cb": {
    "kezdes": "2026-08-05T17:15:00",
@@ -301,10 +278,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "ecb0fcd1-1f89-4343-bf66-ee8d968f3105": {
    "kezdes": "2026-08-03T15:45:00",
@@ -313,11 +290,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
   "f150962e-dc3f-4069-a940-17cba8d46f5f": {
    "kezdes": "2026-08-02T13:45:00",
@@ -327,10 +303,10 @@
    "terem": "18. terem",
    "jellemzok": [
     "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+    "PRÉMIUM"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
+   "kereses": "feliratos | premium | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
   "f75c16b1-8ccf-486d-8623-3dfd94965e12": {
    "kezdes": "2026-08-05T19:15:00",
@@ -339,11 +315,10 @@
    "nyelv": "feliratos",
    "terem": "3. terem",
    "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
+    "feliratos"
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
+   "kereses": "feliratos | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   }
  }
 }
