@@ -7,9 +7,11 @@ name: Cinema City műsorfigyelő
 on:
   schedule:
     # 5 percenként — ez a GitHub Actions legsűrűbb megengedett ütemezése.
-    # Szándékosan nem kerek percben: a :00 a GitHub cron csúcsidőszaka,
-    # olyankor gyakran késik vagy eldobja a futást.
-    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+    # A bevett `*/5` alakot használjuk; a listás felsorolás (2,7,12,…) elvileg
+    # szintén szabályos, de ezt dolgozza fel biztosan a GitHub ütemezője.
+    # A futások amúgy is késnek pár percet, nagy terhelésnél ki is maradnak —
+    # ez a GitHubnál normális, nem a mi hibánk.
+    - cron: "*/5 * * * *"
 
   workflow_dispatch:
     inputs:
