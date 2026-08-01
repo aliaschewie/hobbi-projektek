@@ -124,12 +124,19 @@ ORSZAGOK = {
     "cz": ("https://www.cinemacity.cz", "10101", "cs_CZ"),
 }
 
-# Amit a vetítés címkéi közül érdemes kiírni; a többi (műfaj, korhatár) megy a kukába.
+# Amit a vetítés címkéi közül KIÍRUNK az értesítésbe. A műfaj (horror, sci-fi),
+# a korhatár (18-plus) és a nyelvi részletek (original-lang-en) nem kerülnek
+# ide, mert hosszú és fölösleges lenne — SZŰRNI viszont azokra is lehet, mert
+# a szűrés a nyers API-címkéket is nézi, nem csak ezt a listát.
+#
+# 2026-08-01-i felmérés alapján ténylegesen előforduló formátumok:
+#   imax, screenx, vip (Aréna) · 4dx (WestEnd) · 2d, 3d (mindenhol)
+# A "2d" szándékosan nincs itt: majdnem minden vetítés az, csak zajt vinne a
+# sorokba. SZŰRNI viszont lehet rá ("2D"), mert a nyers címkék közt ott van.
 JELLEMZOK = {
-    "imax": "IMAX", "4dx": "4DX", "4dx-3d": "4DX 3D", "screenx": "ScreenX",
-    "dolby-cinema": "Dolby Cinema", "vip": "VIP", "kids": "Kids",
-    "3d": "3D", "dubbed": "szinkronos", "subbed": "feliratos",
-    "original-lang": "eredeti nyelven", "sing-along": "sing-along",
+    "imax": "IMAX", "4dx": "4DX", "screenx": "ScreenX", "vip": "VIP",
+    "3d": "3D",
+    "dubbed": "szinkronos", "subbed": "feliratos",
 }
 
 TIMEOUT = 30
