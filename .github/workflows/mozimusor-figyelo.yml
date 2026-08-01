@@ -135,6 +135,11 @@ jobs:
         env:
           ELETJEL: ${{ vars.ELETJEL }}
           ELETJEL_NAPOK: ${{ vars.ELETJEL_NAPOK }}
+          # Hogy a heti levél tudja, melyik figyelő van kikapcsolva — egy
+          # néma figyelőről beszámolni úgy, mintha élne, rosszabb a
+          # hallgatásnál.
+          FIGYELD_CCITY: ${{ vars.FIGYELD_CCITY }}
+          FIGYELD_ETELE: ${{ vars.FIGYELD_ETELE }}
         run: |
           set -o pipefail
           python3 eletjel.py --state state/eletjel.json | tee /tmp/eletjel.txt

@@ -25,10 +25,11 @@ ELETJEL = True             # False = ne küldjön életjelet
 
 NAPOK_KOZOTT = 7           # ennyi naponta egyszer
 
-# Melyik figyelőkről számoljon be. (állapotfájl, előtag, olvasható név)
+# Melyik figyelőkről számoljon be.
+# (állapotfájl, előtag, olvasható név, a figyelő szkriptje)
 FORRASOK = [
-    ("state/seen.json", "CCITY", "Cinema City Aréna"),
-    ("state/etele.json", "ETELE", "Etele Cinema"),
+    ("state/seen.json", "CCITY", "Cinema City Aréna", "watch.py"),
+    ("state/etele.json", "ETELE", "Etele Cinema", "etele.py"),
     # A MOM nem a felhőben fut, hanem a Macen (a cinemamom.hu szűri az
     # adatközponti IP-ket) — az állapotfájlja nincs a repóban, ezért itt
     # nem tud róla beszámolni. Részletek: HELYI-MOM.md
@@ -41,6 +42,7 @@ REPO = "aliaschewie/hobbi-projektek"
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import date, datetime, timezone
 
@@ -79,7 +81,35 @@ def betolt(utvonal):
         return None
 
 
-def forras_sorai(utvonal, elotag, nev):
+def be_van_kapcsolva(szkript, elotag):
+    """Fut-e egyáltalán ez a figyelő?
+
+    Két helyről jöhet a válasz, ugyanabban a sorrendben, ahogy a figyelők is
+    értelmezik: a `FIGYELD_<ELŐTAG>` repo-változó felülírja a szkript tetején
+    lévő `FIGYELD` sort. A szkriptet nem futtatjuk, csak kiolvassuk belőle azt
+    az egy sort — így az életjel akkor sem téved, ha a figyelő nem is indul el.
+
+    Ez azért fontos, mert a heti levél feladata épp a bizalom: egy kikapcsolt
+    figyelőről beszámolni úgy, mintha élne, rosszabb a hallgatásnál.
+    """
+    valtozo = os.environ.get(f"FIGYELD_{elotag}", "").strip()
+    if valtozo:
+        return valtozo.lower() in ("1", "true", "igen", "yes", "on")
+    try:
+        with open(szkript, encoding="utf-8") as f:
+            for sor in f:
+                m = re.match(r"\s*FIGYELD\s*=\s*(True|False)\b", sor)
+                if m:
+                    return m.group(1) == "True"
+    except OSError:
+        pass
+    return True          # ha nem tudjuk megállapítani, ne riogassunk
+
+
+def forras_sorai(utvonal, elotag, nev, szkript=None):
+    if szkript and not be_van_kapcsolva(szkript, elotag):
+        return [f"{nev} [{elotag}]",
+                "  KIKAPCSOLVA — ez a figyelő jelenleg nem fut"]
     adat = betolt(utvonal)
     if adat is None:
         return [f"{nev} [{elotag}]",
@@ -133,8 +163,8 @@ def main():
              "",
              f">> Futások megtekintése: https://github.com/{REPO}/actions",
              ""]
-    for utvonal, elotag, nev in FORRASOK:
-        sorok += forras_sorai(utvonal, elotag, nev)
+    for forras in FORRASOK:
+        sorok += forras_sorai(*forras)
         sorok.append("")
     sorok += [
         "Ez a levél hetente egyszer megy ki, és csak annyit jelent, hogy a",

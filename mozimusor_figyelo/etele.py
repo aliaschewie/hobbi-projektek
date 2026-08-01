@@ -16,7 +16,12 @@ Csak stdlib, nincs pip függőség.
 #
 # ===========================================================================
 
-FIGYELD = True         # False = ez a figyelő nem fut, kérést sem küld
+FIGYELD = False        # <-- most nincs rá szükség; a kód kész és letesztelt
+
+# Visszakapcsolás kód nélkül, azonnal: Settings > Secrets and variables >
+# Actions > Variables > FIGYELD_ETELE = true. A kitöltött változó felülírja
+# ezt a sort, push nélkül. Vagy írd itt True-ra és pushold.
+
 CIMKE = "ETELE"        # az e-mail tárgyának előtagja
 
 
