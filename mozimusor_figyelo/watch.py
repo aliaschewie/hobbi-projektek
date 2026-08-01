@@ -62,7 +62,34 @@ ORSZAG = "hu"            # "hu" = cinemacity.hu, "cz" = cinemacity.cz
 FILM_SZURO = ["Odüsszeia"]
 
 
-# --- 3. Finomhangolás (ritkán kell hozzányúlni) ----------------------------
+# --- 3. Milyen vetítésre? --------------------------------------------------
+#
+# ÜRES LISTA  ->  a film MINDEN vetítése érdekel.
+#
+# KITÖLTVE    ->  csak az illeszkedőkről szól. Egy listaelemen belül a
+#                 vesszővel elválasztott feltételeknek EGYÜTT kell
+#                 teljesülniük, a listaelemek között viszont VAGY van.
+#
+#   JELLEMZO_SZURO = []                       <- minden vetítés
+#   JELLEMZO_SZURO = ["IMAX, feliratos"]      <- csak ami IMAX ÉS feliratos
+#   JELLEMZO_SZURO = ["IMAX", "4DX"]          <- IMAX VAGY 4DX, felirattól függetlenül
+#   JELLEMZO_SZURO = ["IMAX, feliratos", "4DX, szinkronos"]
+#
+# Pontosan azokra a szavakra illeszthetsz, amiket az értesítésben látsz:
+#
+#     2026-08-01 szo 10:00  IMAX terem  (IMAX, feliratos)
+#                           ^^^^^^^^^^   ^^^^^^^^^^^^^^^
+#                           a terem is    a jellemzők
+#
+# Tehát a terem nevére is szűrhetsz. Ékezet és kis-nagybetű mindegy.
+# Használható jellemzők: IMAX, 4DX, 4DX 3D, ScreenX, Dolby Cinema, VIP,
+#                        Kids, 3D, szinkronos, feliratos, eredeti nyelven,
+#                        sing-along
+
+JELLEMZO_SZURO = ["IMAX, feliratos"]
+
+
+# --- 4. Finomhangolás (ritkán kell hozzányúlni) ----------------------------
 
 # HORIZONT MÓDBAN: egy napot ennyi vetítéstől tekintünk "teljesnek". Az Aréna
 # teljes napja ~100 vetítés, egy előre nyitott premier 1-2 — a 15 bőven a
@@ -183,12 +210,27 @@ def config_osszerak():
     else:
         szuro = [s.strip() for s in nyers.split(",") if s.strip()]
 
+    # Jellemző-szűrő. Változóból a listaelemeket pontosvessző választja el,
+    # mert a vessző az elemen BELÜL jelent "és"-t:
+    #   JELLEMZO_SZURO="IMAX, feliratos; 4DX"  ->  (IMAX ÉS feliratos) VAGY 4DX
+    nyersj = env("JELLEMZO_SZURO")
+    if nyersj is None:
+        jellemzo = [s.strip() for s in JELLEMZO_SZURO if s and s.strip()]
+    elif nyersj in ("*", "-", "mind", "all"):
+        jellemzo = []
+    else:
+        jellemzo = [s.strip() for s in nyersj.split(";") if s.strip()]
+
     host, site, lang = ORSZAGOK[orszag]
     return {
         "nev": nev, "szam": str(szam), "host": host, "site": site, "lang": lang,
         "link": f"{host}/cinemas/{nev}/{szam}",
         "szuro": szuro,
         "szuro_kulcs": [ekezettelen(s) for s in szuro],
+        "jellemzo": jellemzo,
+        # [["imax","feliratos"], ["4dx"]] — belül ÉS, kívül VAGY
+        "jellemzo_kulcs": [[r.strip() for r in ekezettelen(s).split(",") if r.strip()]
+                           for s in jellemzo],
         "mod": "film" if szuro else "horizont",
     }
 
@@ -250,20 +292,29 @@ def nap_lekeres(napi_datum):
 # --- állapot --------------------------------------------------------------
 
 def state_betolt(utvonal):
+    """Korábbi állapot, vagy None, ha nincs használható.
+
+    A None és az ÜRES SZÓTÁR nem ugyanaz! Az üres szótár azt jelenti, hogy
+    már futottunk, csak nem volt egyetlen találat sem — ilyenkor a legelső
+    felbukkanó vetítésről szólni KELL. Ha a kettőt összemosnánk, a szkript
+    örökre "első futásnak" hinné magát, és épp azt az egy értesítést nyelné
+    el, amire vársz.
+    """
     try:
         with open(utvonal, encoding="utf-8") as f:
             adat = json.load(f)
     except (FileNotFoundError, ValueError):
-        return {}
-    # Ha közben átálltál másik mozira, módra vagy filmre, a régi állapot
-    # nem érvényes rá — nulláról kezdünk, hogy ne spammeljen.
+        return None
+    # Ha közben átálltál másik mozira, módra, filmre vagy jellemzőre, a régi
+    # állapot nem érvényes rá — nulláról kezdünk, hogy ne spammeljen.
     if (str(adat.get("mozi_szama")) != CFG["szam"]
             or adat.get("mod") != CFG["mod"]
-            or [ekezettelen(s) for s in adat.get("szuro", [])] != CFG["szuro_kulcs"]):
-        if adat:
-            print("[info] a beallitas megvaltozott az allapotfajl ota, "
-                  "ujrakezdem", file=sys.stderr)
-        return {}
+            or [ekezettelen(s) for s in adat.get("szuro", [])] != CFG["szuro_kulcs"]
+            or [ekezettelen(s) for s in adat.get("jellemzo", [])]
+               != [ekezettelen(s) for s in CFG["jellemzo"]]):
+        print("[info] a beallitas megvaltozott az allapotfajl ota, "
+              "ujrakezdem", file=sys.stderr)
+        return None
     return adat.get("adat", {})
 
 
@@ -273,7 +324,7 @@ def state_ment(utvonal, adat):
         "frissitve": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mozi_neve": CFG["nev"], "mozi_szama": CFG["szam"],
         "mod": CFG["mod"], "szuro": CFG["szuro"],
-        "teljes_min": TELJES_MIN,
+        "jellemzo": CFG["jellemzo"], "teljes_min": TELJES_MIN,
         "adat": dict(sorted(adat.items())),
     }
     tmp = utvonal + ".tmp"
@@ -317,10 +368,32 @@ def nap_cimke(d):
 #   FILM MÓD — konkrét film új időpontjai
 # ===========================================================================
 
+def jellemzo_illeszkedik(info, nyers_cimkek):
+    """Igaz, ha a vetítés megfelel a JELLEMZO_SZURO-nek. Üres szűrő = minden jó.
+
+    Amire illeszthetünk: a kiírt címkék (IMAX, feliratos, ...), a nyers
+    API-címkék (imax, subbed, ...) és a terem neve (IMAX terem). Egy
+    listaelemen belül minden feltételnek teljesülnie kell, a listaelemek
+    között viszont elég az egyik.
+    """
+    if not CFG["jellemzo_kulcs"]:
+        return True
+    szoveg = ekezettelen(" | ".join(info["jellemzok"] + list(nyers_cimkek)
+                                    + [info["terem"]]))
+    return any(all(felt in szoveg for felt in keszlet)
+               for keszlet in CFG["jellemzo_kulcs"])
+
+
 def film_vetitesek():
-    """{esemény_id: {...}} a szűrőre illeszkedő filmek összes vetítéséből."""
+    """A szűrőkre illeszkedő vetítések.
+
+    Visszatérés: (találatok, filmnevek, napok, film_összes)
+    A film_összes a jellemző-szűrés ELŐTTI darabszám — ebből látszik, ha a
+    film ugyan műsoron van, csak nem olyan formátumban, amilyet kértél.
+    """
     talalt = {}
     filmnevek = set()
+    film_osszes = 0
     napok = jatszasi_napok()
     for i, d in enumerate(napok):
         if i:
@@ -338,15 +411,18 @@ def film_vetitesek():
         for e in esemenyek:
             if e.get("filmId") not in egyezo:
                 continue
-            jell = [JELLEMZOK[a] for a in e.get("attributeIds", []) if a in JELLEMZOK]
-            talalt[str(e.get("id"))] = {
+            film_osszes += 1
+            nyers_cimkek = e.get("attributeIds", [])
+            info = {
                 "kezdes": e.get("eventDateTime", ""),
                 "film": egyezo[e["filmId"]],
                 "terem": e.get("auditorium", ""),
-                "jellemzok": jell,
+                "jellemzok": [JELLEMZOK[a] for a in nyers_cimkek if a in JELLEMZOK],
                 "link": e.get("bookingLink", ""),
             }
-    return talalt, sorted(filmnevek), napok
+            if jellemzo_illeszkedik(info, nyers_cimkek):
+                talalt[str(e.get("id"))] = info
+    return talalt, sorted(filmnevek), napok, film_osszes
 
 
 def vetites_sor(info):
@@ -366,8 +442,10 @@ def mult_nyeses_vetitesek(vetitesek):
 
 
 def film_mod(args):
-    regi = mult_nyeses_vetitesek(state_betolt(args.state))
-    mostani, filmnevek, napok = film_vetitesek()
+    korabbi = state_betolt(args.state)
+    elso_futas = korabbi is None
+    regi = mult_nyeses_vetitesek(korabbi or {})
+    mostani, filmnevek, napok, film_osszes = film_vetitesek()
     if not napok:
         print("[hiba] az API egyetlen jatszasi napot sem adott vissza",
               file=sys.stderr)
@@ -375,33 +453,46 @@ def film_mod(args):
 
     ujak = {k: v for k, v in mostani.items() if k not in regi}
     cimke = " / ".join(filmnevek) if filmnevek else " / ".join(CFG["szuro"])
+    jcimke = f" [{' vagy '.join(CFG['jellemzo'])}]" if CFG["jellemzo"] else ""
+    # hány vetítést dobott el a jellemző-szűrő
+    kiszurt = film_osszes - len(mostani)
 
-    if args.seed or (not regi and not args.force_report):
-        state_ment(args.state, mostani)
-        print(f"[seed] allapot elmentve: {len(mostani)} vetites "
-              f"({cimke}). Ertesites nem ment ki.")
+    def reszletek():
         for k in sorted(mostani, key=lambda k: mostani[k]["kezdes"]):
             print(vetites_sor(mostani[k]))
+        if kiszurt:
+            print(f"  (+ {kiszurt} tovabbi vetites, amit a jellemzo-szuro "
+                  f"kihagyott)")
+
+    if args.seed or (elso_futas and not args.force_report):
+        state_ment(args.state, mostani)
+        print(f"[seed] allapot elmentve: {len(mostani)} vetites "
+              f"({cimke}{jcimke}). Ertesites nem ment ki.")
+        reszletek()
         return 0
 
     if ujak:
-        sorok = [f"=== {cimke}: {len(ujak)} új időpont ==="]
+        sorok = [f"=== {cimke}: {len(ujak)} új időpont{jcimke} ==="]
         sorok += [vetites_sor(ujak[k])
                   for k in sorted(ujak, key=lambda k: ujak[k]["kezdes"])]
-        sorok += ["", f"Összesen {len(mostani)} időpont a következő "
+        sorok += ["", f"Összesen {len(mostani)} illeszkedő időpont a következő "
                       f"{(date.fromisoformat(max(napok)) - date.today()).days} napban.",
                   CFG["link"]]
         kiir(sorok)
     elif args.force_report:
-        print(f"[jelentes] {cimke}: {len(mostani)} idopont jelenleg")
-        for k in sorted(mostani, key=lambda k: mostani[k]["kezdes"]):
-            print(vetites_sor(mostani[k]))
-    elif not mostani:
+        print(f"[jelentes] {cimke}{jcimke}: {len(mostani)} idopont jelenleg")
+        reszletek()
+    elif not film_osszes:
         print(f"[nincs valtozas] a(z) {' / '.join(CFG['szuro'])} jelenleg "
               f"nincs musoron; {len(napok)} jatszasi nap atnezve.")
+    elif not mostani:
+        # ez a leggyakoribb felreertes forrasa, ezert kulon uzenetet kap
+        print(f"[nincs valtozas] a(z) {cimke} musoron van {film_osszes} "
+              f"idoponttal, de egyik sem felel meg a jellemzo-szuronek "
+              f"({' vagy '.join(CFG['jellemzo'])}). {len(napok)} nap atnezve.")
     else:
-        print(f"[nincs valtozas] {cimke}: {len(mostani)} idopont, "
-              f"{len(napok)} nap atnezve.")
+        print(f"[nincs valtozas] {cimke}{jcimke}: {len(mostani)} idopont "
+              f"({kiszurt} kiszurve), {len(napok)} nap atnezve.")
 
     state_ment(args.state, mostani)
     return 0
@@ -413,7 +504,9 @@ def film_mod(args):
 
 def horizont_mod(args):
     ma = date.today().isoformat()
-    regi = {d: v for d, v in state_betolt(args.state).items() if d >= ma}
+    korabbi = state_betolt(args.state)
+    elso_futas = korabbi is None
+    regi = {d: v for d, v in (korabbi or {}).items() if d >= ma}
     napok = jatszasi_napok()
     if not napok:
         print("[hiba] az API egyetlen jatszasi napot sem adott vissza",
@@ -447,7 +540,7 @@ def horizont_mod(args):
         return (f"  {nap_cimke(d):<11} {info['vetitesek']:>3} vetítés, "
                 f"{info['filmek']:>2} film{jel}")
 
-    if args.seed or (not regi and not args.force_report):
+    if args.seed or (elso_futas and not args.force_report):
         state_ment(args.state, uj)
         teljes = sum(1 for i in uj.values() if i["teljes"])
         print(f"[seed] allapot elmentve: {len(uj)} nap ({teljes} teljes), "
