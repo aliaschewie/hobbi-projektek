@@ -246,7 +246,20 @@ def nyelv_besorolas(v):
 
 
 def jellemzok_listaja(v, nyelv):
-    """Amit az értesítésben kiírunk, és amire szűrni lehet."""
+    """Amit az értesítésben KIÍRUNK.
+
+    A `screen.feature` mezőbe az Etele az ülőhelytípusokat teszi, nem a
+    vetítési formátumot — például:
+
+        "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+
+    Ezt egyben kiírni olvashatatlan, és nem is arra a kérdésre válaszol, hogy
+    milyen vetítés. Ezért csak a rövid, egytagú jelölést vesszük át (`IMAX`,
+    `4DX`) — az ülőhely-felsorolás vesszős és hosszú, tehát kimarad.
+
+    SZŰRNI ettől függetlenül lehet rá (`"Recliners"`, `"Premium"`), mert a
+    kereső szöveg a nyers értékeket is tartalmazza.
+    """
     ki = []
     if nyelv:
         ki.append(nyelv)
@@ -255,7 +268,7 @@ def jellemzok_listaja(v, nyelv):
         ki.append(kep)
     kepernyo = v.get("screen") or {}
     jellemzo = (kepernyo.get("feature") or "").strip()
-    if jellemzo:
+    if jellemzo and "," not in jellemzo and len(jellemzo) <= 20:
         ki.append(jellemzo)
     return ki
 
