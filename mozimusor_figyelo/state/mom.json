@@ -1,0 +1,55 @@
+{
+ "frissitve": "2026-08-01T10:05:52Z",
+ "mozi": "Cinema MOM",
+ "szuro": [
+  "The Odyssey"
+ ],
+ "jellemzo": [],
+ "adat": {
+  "25703": {
+   "kezdes": "2026-08-01T19:00:00",
+   "film": "The Odyssey - Original language with Hungarian subtitles",
+   "film_id": "1037",
+   "jellemzok": [
+    "feliratos"
+   ],
+   "link": "https://cinemamom.hu/jegyrendeles/25703"
+  },
+  "25704": {
+   "kezdes": "2026-08-02T19:00:00",
+   "film": "The Odyssey - Original language with Hungarian subtitles",
+   "film_id": "1037",
+   "jellemzok": [
+    "feliratos"
+   ],
+   "link": "https://cinemamom.hu/jegyrendeles/25704"
+  },
+  "25705": {
+   "kezdes": "2026-08-04T19:00:00",
+   "film": "The Odyssey - Original language with Hungarian subtitles",
+   "film_id": "1037",
+   "jellemzok": [
+    "feliratos"
+   ],
+   "link": "https://cinemamom.hu/jegyrendeles/25705"
+  },
+  "25706": {
+   "kezdes": "2026-08-05T19:00:00",
+   "film": "The Odyssey - Original language with Hungarian subtitles",
+   "film_id": "1037",
+   "jellemzok": [
+    "feliratos"
+   ],
+   "link": "https://cinemamom.hu/jegyrendeles/25706"
+  },
+  "25723": {
+   "kezdes": "2026-08-03T19:00:00",
+   "film": "The Odyssey - Original language with Hungarian subtitles",
+   "film_id": "1037",
+   "jellemzok": [
+    "feliratos"
+   ],
+   "link": "https://cinemamom.hu/jegyrendeles/25723"
+  }
+ }
+}
