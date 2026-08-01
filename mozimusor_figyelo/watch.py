@@ -138,6 +138,11 @@ JELLEMZOK = {
 # magyar címke -> nyers API-címke, a `filtered=` linkparaméterhez
 CIMKE_NYERS = {}
 
+# Ezeket ismeri az oldal `filtered=` paramétere. A hosszabb nevek elöl, hogy
+# a "4dx-3d" ne akadjon el a "4dx"-en.
+FORMATUM_CIMKEK = ("imax", "4dx-3d", "4dx", "screenx", "dolby-cinema",
+                   "vip", "kids", "3d")
+
 TIMEOUT = 30
 RETRIES = 3
 UA = "mozimusor-figyelo/1.0"
@@ -430,30 +435,42 @@ def film_vetitesek():
                 "film_id": e.get("filmId", ""),
                 "terem": e.get("auditorium", ""),
                 "jellemzok": [JELLEMZOK[a] for a in nyers_cimkek if a in JELLEMZOK],
-                "link": e.get("bookingLink", ""),
+                # A `bookingLink` egy API-végpont (tickets.cinemacity.hu/api/…),
+                # böngészőben nem használható. A `bookingRouterLaunchLink` a
+                # rendes belépő a jegyvásárlásba, azt tesszük az értesítésbe.
+                "link": (e.get("bookingRouterLaunchLink")
+                         or e.get("bookingLink", "")),
             }
             if jellemzo_illeszkedik(info, nyers_cimkek):
                 talalt[str(e.get("id"))] = info
     return talalt, filmek_info, napok, film_osszes
 
 
-def szuro_nyers_cimkek():
-    """A JELLEMZO_SZURO első feltétel-készlete nyers API-címkékre fordítva.
+def szuro_nyers_cimke():
+    """Az egyetlen érték, ami a link `filtered=` paraméterébe kerülhet.
 
-    Az oldal `filtered=` paramétere ilyeneket vár: imax, subbed, 4dx, ...
-    Ha több VAGY-ágat adtál meg, csak az elsőt tudjuk linkbe tenni — az URL
-    egyetlen szűrőt ismer. Az értesítés tartalma ettől függetlenül mindet
-    figyelembe veszi.
+    Az oldal ezt a paramétert szűken értelmezi: csak a vetítési FORMÁTUMOT
+    ismeri (imax, 4dx, screenx, …), és csak egyet belőle. A nyelvet
+    (feliratos/szinkronos) nem — a `filtered=imax,subbed` alakra egyszerűen
+    nem szűr semmire. Ezért a formátumot tesszük be, a nyelvet nem: a listában
+    az úgyis egy pillantás.
+
+    Az értesítés TARTALMA ettől függetlenül a teljes JELLEMZO_SZURO-t
+    figyelembe veszi — ez a szűkítés csak a linkre vonatkozik.
     """
     if not CFG["jellemzo_kulcs"]:
-        return []
-    ki = []
+        return None
+    # 1. kör: pontos egyezés ("IMAX" vagy "imax")
     for felt in CFG["jellemzo_kulcs"][0]:
-        if felt in JELLEMZOK:            # eleve nyers címkét írtak be
-            ki.append(felt)
-        elif felt in CIMKE_NYERS:        # magyar címke -> nyers
-            ki.append(CIMKE_NYERS[felt])
-    return ki
+        nyers = felt if felt in JELLEMZOK else CIMKE_NYERS.get(felt)
+        if nyers in FORMATUM_CIMKEK:
+            return nyers
+    # 2. kör: a feltétel tartalmazza a formátumot ("ScreenX terem" -> screenx)
+    for felt in CFG["jellemzo_kulcs"][0]:
+        for formatum in FORMATUM_CIMKEK:
+            if formatum in felt:
+                return formatum
+    return None
 
 
 def film_szuro_link(film_id, datum=None):
@@ -461,7 +478,10 @@ def film_szuro_link(film_id, datum=None):
 
     Ilyen alakban, ahogy a böngésző címsorában is megjelenik:
       /cinemas/arena/1132#/buy-tickets-by-cinema
-        ?in-cinema=1132&at=2026-08-01&for-movie=7460d2r&filtered=imax&view-mode=list
+        ?in-cinema=1132&at=2026-08-02&for-movie=7460d2r&filtered=imax&view-mode=list
+
+    A `filtered` egyetlen formátumot vesz fel. Vesszős felsorolásra
+    (`imax,subbed`) nem szűr semmire — kipróbálva.
 
     A `#` utáni rész a böngészőben futó alkalmazásnak szól, a szerver nem is
     látja. Ha a Cinema City valaha átalakítja, az értesítésben ott marad
@@ -473,9 +493,9 @@ def film_szuro_link(film_id, datum=None):
     if datum:
         reszek.append(f"at={datum}")
     reszek.append(f"for-movie={film_id}")
-    nyers = szuro_nyers_cimkek()
+    nyers = szuro_nyers_cimke()
     if nyers:
-        reszek.append("filtered=" + ",".join(nyers))
+        reszek.append(f"filtered={nyers}")
     reszek.append("view-mode=list")
     return (f"{CFG['host']}/cinemas/{CFG['nev']}/{CFG['szam']}"
             f"#/buy-tickets-by-cinema?" + "&".join(reszek))
