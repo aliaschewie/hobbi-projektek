@@ -73,6 +73,10 @@ jobs:
           FIGYELD: ${{ vars.FIGYELD_CCITY }}
           MOZI_NEVE: ${{ vars.MOZI_NEVE }}
           MOZI_SZAMA: ${{ vars.MOZI_SZAMA }}
+          # Filmenkénti szűrő. Alak:  "Film|jellemző ; Film|jellemző"
+          #   FIGYELT="Odüsszeia|IMAX, feliratos ; Pókember|ScreenX, feliratos"
+          FIGYELT: ${{ vars.FIGYELT }}
+          # A régi, kétváltozós alak is működik, ha FIGYELT nincs kitöltve:
           FILM_SZURO: ${{ vars.FILM_SZURO }}
           JELLEMZO_SZURO: ${{ vars.JELLEMZO_SZURO }}
           FULL_MIN_EVENTS: ${{ vars.FULL_MIN_EVENTS }}
@@ -100,8 +104,8 @@ jobs:
         continue-on-error: true
         env:
           FIGYELD: ${{ vars.FIGYELD_ETELE }}
+          FIGYELT: ${{ vars.ETELE_FIGYELT }}
           FILM_SZURO: ${{ vars.ETELE_FILM_SZURO }}
-          NYELV: ${{ vars.ETELE_NYELV }}
           JELLEMZO_SZURO: ${{ vars.ETELE_JELLEMZO_SZURO }}
         run: |
           set -o pipefail

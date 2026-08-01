@@ -61,34 +61,25 @@ MOZI_SZAMA = "1132"      # a szám a link végén: /cinemas/arena/[1132]
 ORSZAG = "hu"            # "hu" = cinemacity.hu, "cz" = cinemacity.cz
 
 
-# --- 2. Melyik filmre? -----------------------------------------------------
+# --- 2. Mit figyeljen? -----------------------------------------------------
 #
-# ÜRES LISTA  ->  minden filmre megy az értesítés (horizont mód): akkor szól,
-#                 amikor a mozi új napokra ír ki műsort.
+# Filmenként külön szűrő. Minden sor egy pár:  (film, milyen vetítésre)
 #
-# KITÖLTVE    ->  csak a felsorolt filmekre szól, minden új időponthoz külön.
-#                 Elég a cím egy része, az ékezet és a kis-nagybetű mindegy:
-#                 "odusszeia" is megtalálja az "Odüsszeia"-t.
+#   FIGYELT = [
+#       ("Odüsszeia", "IMAX, feliratos"),
+#       ("Pókember",  "ScreenX, feliratos"),
+#       ("Toy Story", ""),                     # minden vetítése érdekel
+#   ]
 #
-#   FILM_SZURO = []                          <- minden
-#   FILM_SZURO = ["Odüsszeia"]               <- csak ez az egy
-#   FILM_SZURO = ["Odüsszeia", "Toy Story"]  <- több film egyszerre
-
-FILM_SZURO = ["Odüsszeia"]
-
-
-# --- 3. Milyen vetítésre? --------------------------------------------------
+# A FILM: elég a cím egy része, az ékezet és a kis-nagybetű mindegy —
+# a "pokember" megtalálja a "Pókember: Vadonatúj nap"-ot is.
 #
-# ÜRES LISTA  ->  a film MINDEN vetítése érdekel.
+# A JELLEMZŐ: a vessző „és"-t jelent, a „vagy" szó vagylagos ágakat választ el:
 #
-# KITÖLTVE    ->  csak az illeszkedőkről szól. Egy listaelemen belül a
-#                 vesszővel elválasztott feltételeknek EGYÜTT kell
-#                 teljesülniük, a listaelemek között viszont VAGY van.
-#
-#   JELLEMZO_SZURO = []                       <- minden vetítés
-#   JELLEMZO_SZURO = ["IMAX, feliratos"]      <- csak ami IMAX ÉS feliratos
-#   JELLEMZO_SZURO = ["IMAX", "4DX"]          <- IMAX VAGY 4DX, felirattól függetlenül
-#   JELLEMZO_SZURO = ["IMAX, feliratos", "4DX, szinkronos"]
+#   "IMAX, feliratos"                      ->  IMAX ÉS feliratos
+#   "IMAX vagy 4DX"                        ->  bármelyik, felirattól függetlenül
+#   "IMAX, feliratos vagy 4DX, feliratos"  ->  összetett is mehet
+#   ""                                     ->  a film minden vetítése
 #
 # Pontosan azokra a szavakra illeszthetsz, amiket az értesítésben látsz:
 #
@@ -96,12 +87,16 @@ FILM_SZURO = ["Odüsszeia"]
 #                           ^^^^^^^^^^   ^^^^^^^^^^^^^^^
 #                           a terem is    a jellemzők
 #
-# Tehát a terem nevére is szűrhetsz. Ékezet és kis-nagybetű mindegy.
-# Használható jellemzők: IMAX, 4DX, 4DX 3D, ScreenX, Dolby Cinema, VIP,
-#                        Kids, 3D, szinkronos, feliratos, eredeti nyelven,
-#                        sing-along
+# Használható jellemzők: IMAX, ScreenX, VIP, 4DX, 3D, 2D, szinkronos,
+# feliratos — továbbá bármelyik nyers API-címke (műfaj, korhatár): horror,
+# sci-fi, 18-plus, original-lang-en. Teljes lista: claude/beallitas-valtas.md
+#
+# ÜRES LISTA  ->  horizont mód: nem filmet figyel, hanem azt jelzi, amikor a
+#                 mozi ÚJ NAPOKRA ír ki műsort.
 
-JELLEMZO_SZURO = ["IMAX, feliratos"]
+FIGYELT = [
+    ("Odüsszeia", "IMAX, feliratos"),
+]
 
 
 # --- 4. Finomhangolás (ritkán kell hozzányúlni) ----------------------------
@@ -225,6 +220,69 @@ def env(kulcs):
     return ertek or None
 
 
+def jellemzo_agak(szoveg):
+    """Egy jellemző-szűrő szövegből ÉS/VAGY szerkezet.
+
+    "IMAX, feliratos vagy 4DX"  ->  [["imax","feliratos"], ["4dx"]]
+
+    A vessző köt (mindkettőnek teljesülnie kell), a „vagy" választ (elég az
+    egyik ág). Üres szöveg -> üres lista, ami azt jelenti: minden vetítés jó.
+    """
+    szoveg = (szoveg or "").strip()
+    if not szoveg or szoveg in ("*", "-", "mind", "all"):
+        return []
+    agak = []
+    for ag in re.split(r"\s+vagy\s+|;", ekezettelen(szoveg)):
+        tagok = [t.strip() for t in ag.split(",") if t.strip()]
+        if tagok:
+            agak.append(tagok)
+    return agak
+
+
+def figyelt_parok():
+    """(film, jellemző) párok a CONFIG-ból vagy env-változóból.
+
+    Env-alak — a párokat pontosvessző, a film és a jellemző között a
+    függőleges vonal választ el:
+
+        FIGYELT="Odüsszeia|IMAX, feliratos ; Pókember|ScreenX, feliratos"
+
+    Visszafelé kompatibilis: ha nincs FIGYELT, de van a régi FILM_SZURO /
+    JELLEMZO_SZURO változó, azokból építjük a párokat — minden filmre
+    ugyanazzal a jellemzővel, ahogy korábban működött.
+    """
+    nyers = env("FIGYELT")
+    if nyers:
+        parok = []
+        for resz in nyers.split(";"):
+            if not resz.strip():
+                continue
+            film, _, jell = resz.partition("|")
+            if film.strip():
+                parok.append((film.strip(), jell.strip()))
+    elif env("FILM_SZURO") is not None or env("JELLEMZO_SZURO") is not None:
+        filmek = listaz_env("FILM_SZURO")
+        jell = env("JELLEMZO_SZURO") or ""
+        if jell in ("*", "-", "mind", "all"):
+            jell = ""
+        parok = [(f, jell) for f in filmek]
+    else:
+        parok = [(f, j) for f, j in FIGYELT if f and f.strip()]
+
+    return [{"film": f.strip(),
+             "film_kulcs": ekezettelen(f),
+             "jellemzo": (j or "").strip(),
+             "agak": jellemzo_agak(j)}
+            for f, j in parok]
+
+
+def listaz_env(kulcs):
+    nyers = env(kulcs)
+    if nyers is None or nyers in ("*", "-", "mind", "all"):
+        return []
+    return [x.strip() for x in nyers.split(",") if x.strip()]
+
+
 def config_osszerak():
     """CONFIG + env-változók egyesítése. A kitöltött env erősebb — így a
     GitHub Actionsben a kód módosítása nélkül is át lehet állítani."""
@@ -245,36 +303,17 @@ def config_osszerak():
     # FILM_SZURO: az üres változó itt is hiányt jelent, tehát a CONFIG marad
     # érvényben. Ha REPO-VÁLTOZÓBÓL akarod kikapcsolni a szűrést (= minden
     # filmre menjen), írj bele "*"-ot — az üres mező ehhez nem elég.
-    nyers = env("FILM_SZURO")
-    if nyers is None:
-        szuro = [s.strip() for s in FILM_SZURO if s and s.strip()]
-    elif nyers in ("*", "-", "mind", "all"):
-        szuro = []
-    else:
-        szuro = [s.strip() for s in nyers.split(",") if s.strip()]
-
-    # Jellemző-szűrő. Változóból a listaelemeket pontosvessző választja el,
-    # mert a vessző az elemen BELÜL jelent "és"-t:
-    #   JELLEMZO_SZURO="IMAX, feliratos; 4DX"  ->  (IMAX ÉS feliratos) VAGY 4DX
-    nyersj = env("JELLEMZO_SZURO")
-    if nyersj is None:
-        jellemzo = [s.strip() for s in JELLEMZO_SZURO if s and s.strip()]
-    elif nyersj in ("*", "-", "mind", "all"):
-        jellemzo = []
-    else:
-        jellemzo = [s.strip() for s in nyersj.split(";") if s.strip()]
+    parok = figyelt_parok()
 
     host, site, lang = ORSZAGOK[orszag]
     return {
         "nev": nev, "szam": str(szam), "host": host, "site": site, "lang": lang,
         "link": f"{host}/cinemas/{nev}/{szam}",
-        "szuro": szuro,
-        "szuro_kulcs": [ekezettelen(s) for s in szuro],
-        "jellemzo": jellemzo,
-        # [["imax","feliratos"], ["4dx"]] — belül ÉS, kívül VAGY
-        "jellemzo_kulcs": [[r.strip() for r in ekezettelen(s).split(",") if r.strip()]
-                           for s in jellemzo],
-        "mod": "film" if szuro else "horizont",
+        "parok": parok,
+        # a régi mezők a jelentésekhez és az állapotfájl-összehasonlításhoz
+        "szuro": [p["film"] for p in parok],
+        "jellemzo": [p["jellemzo"] for p in parok if p["jellemzo"]],
+        "mod": "film" if parok else "horizont",
     }
 
 
@@ -427,9 +466,8 @@ def state_betolt(utvonal):
     # állapot nem érvényes rá — nulláról kezdünk, hogy ne spammeljen.
     if (str(adat.get("mozi_szama")) != CFG["szam"]
             or adat.get("mod") != CFG["mod"]
-            or [ekezettelen(s) for s in adat.get("szuro", [])] != CFG["szuro_kulcs"]
-            or [ekezettelen(s) for s in adat.get("jellemzo", [])]
-               != [ekezettelen(s) for s in CFG["jellemzo"]]):
+            or adat.get("figyelt") != [[p["film"], p["jellemzo"]]
+                                       for p in CFG["parok"]]):
         print("[info] a beallitas megvaltozott az allapotfajl ota, "
               "ujrakezdem", file=sys.stderr)
         return None
@@ -447,11 +485,12 @@ def state_ment(utvonal, adat):
     payload = {
         "frissitve": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mozi_neve": CFG["nev"], "mozi_szama": CFG["szam"],
-        "mod": CFG["mod"], "szuro": CFG["szuro"],
-        "jellemzo": CFG["jellemzo"], "teljes_min": TELJES_MIN,
+        "mod": CFG["mod"],
+        "figyelt": [[p["film"], p["jellemzo"]] for p in CFG["parok"]],
+        "teljes_min": TELJES_MIN,
         "adat": dict(sorted(adat.items())),
     }
-    kulcsok = ("mozi_neve", "mozi_szama", "mod", "szuro", "jellemzo",
+    kulcsok = ("mozi_neve", "mozi_szama", "mod", "figyelt",
                "teljes_min", "adat")
     try:
         with open(utvonal, encoding="utf-8") as f:
@@ -502,20 +541,33 @@ def nap_cimke(d):
 #   FILM MÓD — konkrét film új időpontjai
 # ===========================================================================
 
-def jellemzo_illeszkedik(info, nyers_cimkek):
-    """Igaz, ha a vetítés megfelel a JELLEMZO_SZURO-nek. Üres szűrő = minden jó.
+def illeszkedo_par(cim):
+    """Melyik FIGYELT párokra illeszkedik ez a filmcím?
+
+    Egy cím több párra is illeszkedhet (pl. ha egyszer "Pókember"-t, egyszer
+    "Vadonatúj nap"-ot vettél fel) — ilyenkor mindegyik szűrője érvényes,
+    vagylagosan.
+    """
+    kulcs = ekezettelen(cim)
+    return [p for p in CFG["parok"] if p["film_kulcs"] in kulcs]
+
+
+def vetites_kell(parok, info, nyers_cimkek):
+    """Igaz, ha a vetítés megfelel legalább az egyik illeszkedő pár szűrőjének.
 
     Amire illeszthetünk: a kiírt címkék (IMAX, feliratos, ...), a nyers
-    API-címkék (imax, subbed, ...) és a terem neve (IMAX terem). Egy
-    listaelemen belül minden feltételnek teljesülnie kell, a listaelemek
-    között viszont elég az egyik.
+    API-címkék (imax, subbed, horror, 18-plus, ...) és a terem neve.
+    Egy ágon belül minden feltételnek teljesülnie kell, az ágak között
+    viszont elég az egyik. Üres szűrő = a film minden vetítése jó.
     """
-    if not CFG["jellemzo_kulcs"]:
-        return True
     szoveg = ekezettelen(" | ".join(info["jellemzok"] + list(nyers_cimkek)
                                     + [info["terem"]]))
-    return any(all(felt in szoveg for felt in keszlet)
-               for keszlet in CFG["jellemzo_kulcs"])
+    for par in parok:
+        if not par["agak"]:
+            return True
+        if any(all(felt in szoveg for felt in ag) for ag in par["agak"]):
+            return True
+    return False
 
 
 def film_vetitesek():
@@ -537,8 +589,9 @@ def film_vetitesek():
         egyezo = {}
         for f in filmek:
             nev = f.get("name", "")
-            if any(k in ekezettelen(nev) for k in CFG["szuro_kulcs"]):
-                egyezo[f.get("id")] = nev
+            parok = illeszkedo_par(nev)
+            if parok:
+                egyezo[f.get("id")] = (nev, parok)
                 filmek_info[f.get("id")] = {"nev": nev, "link": f.get("link", "")}
         if not egyezo:
             continue
@@ -551,7 +604,7 @@ def film_vetitesek():
             nyers_cimkek = e.get("attributeIds", [])
             info = {
                 "kezdes": e.get("eventDateTime", ""),
-                "film": egyezo[e["filmId"]],
+                "film": egyezo[e["filmId"]][0],
                 "film_id": e.get("filmId", ""),
                 "terem": e.get("auditorium", ""),
                 "jellemzok": [JELLEMZOK[a] for a in nyers_cimkek if a in JELLEMZOK],
@@ -561,7 +614,7 @@ def film_vetitesek():
                 "link": (e.get("bookingRouterLaunchLink")
                          or e.get("bookingLink", "")),
             }
-            if jellemzo_illeszkedik(info, nyers_cimkek):
+            if vetites_kell(egyezo[e["filmId"]][1], info, nyers_cimkek):
                 talalt[str(e.get("id"))] = info
     return talalt, filmek_info, napok, film_osszes
 
@@ -681,7 +734,9 @@ def film_mod(args):
         fid = next(iter(filmek_info), None)
         cim = (filmek_info.get(fid) or {}).get("link")
         return [f"A film oldala: {cim}"] if cim else []
-    jcimke = f" [{' vagy '.join(CFG['jellemzo'])}]" if CFG["jellemzo"] else ""
+    # a tárgysorba a figyelt szűrők kerülnek; ha mindegyik ugyanaz, egyszer
+    jell = sorted({p["jellemzo"] for p in CFG["parok"] if p["jellemzo"]})
+    jcimke = f" [{' / '.join(jell)}]" if jell else ""
     # hány vetítést dobott el a jellemző-szűrő
     kiszurt = film_osszes - len(mostani)
 

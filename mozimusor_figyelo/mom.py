@@ -42,39 +42,31 @@ FIGYELD = False
 CIMKE = "MOM"
 
 
-# --- 1. Melyik filmre? -----------------------------------------------------
+# --- 1. Mit figyeljen? -----------------------------------------------------
 #
-# FONTOS KÜLÖNBSÉG a Cinema Cityhez képest: a MOM-nál a szinkronos és a
+# Filmenként külön szűrő. Minden sor egy pár:  (film, milyen vetítésre)
+#
+#   FIGYELT = [
+#       ("The Odyssey", ""),
+#       ("Vaiana",      "feliratos"),
+#   ]
+#
+# FONTOS KÜLÖNBSÉG a másik két mozihoz képest: a MOM-nál a szinkronos és a
 # feliratos változat KÉT KÜLÖN FILM, más-más címmel:
 #
-#     "Odüsszeia"                                          <- szinkronos
-#     "The Odyssey - Original language with Hungarian subtitles"  <- feliratos
+#     "Odüsszeia"                                                 <- szinkronos
+#     "The Odyssey - Original language with Hungarian subtitles"   <- feliratos
 #
-# Most a FELIRATOS változatra figyelünk. Ha a szinkronos is érdekelne, írd:
-#     FILM_SZURO = ["Odüsszeia", "The Odyssey"]
-# Csak szinkronos:
-#     FILM_SZURO = ["Odüsszeia"]
+# Ezért itt a nyelvet jellemzően a FILM címével választod ki, nem a
+# jellemzővel. A jellemző marad a betűjelre (F = feliratos), a teremre és a
+# film címére való szűkítésre.
 #
 # Elég a cím egy része, az ékezet és a kis-nagybetű mindegy.
 # ÜRES LISTA = minden filmre szól, ami a moziban megjelenik.
 
-FILM_SZURO = ["The Odyssey"]
-
-
-# --- 2. Milyen vetítésre? --------------------------------------------------
-#
-# A MOM minden vetítéshez tehet egy betűjelet. Amit eddig láttunk:
-#     F  = feliratos
-#     (jelöletlen) = szinkronos
-#     M, E = ritkábban előfordul, a teljes műsorlistában
-#
-# Szűrni a betűre, a film címére és a nap nevére is lehet. A vessző „és"-t
-# jelent egy elemen belül, a listaelemek között „vagy" van.
-#
-#   JELLEMZO_SZURO = []            <- minden vetítés
-#   JELLEMZO_SZURO = ["feliratos"] <- csak a feliratos jelölésűek
-
-JELLEMZO_SZURO = []
+FIGYELT = [
+    ("The Odyssey", ""),
+]
 
 
 # --- 3. Finomhangolás ------------------------------------------------------
@@ -149,6 +141,68 @@ def osztalyok(tag):
     return m.group(1).split() if m else []
 
 
+def jellemzo_agak(szoveg):
+    """Egy jellemző-szűrő szövegből ÉS/VAGY szerkezet.
+
+    "IMAX, feliratos vagy 4DX"  ->  [["imax","feliratos"], ["4dx"]]
+
+    A vessző köt (mindkettőnek teljesülnie kell), a „vagy" választ (elég az
+    egyik ág). Üres szöveg -> üres lista: minden vetítés jó.
+    """
+    szoveg = (szoveg or "").strip()
+    if not szoveg or szoveg in ("*", "-", "mind", "all"):
+        return []
+    agak = []
+    for ag in re.split(r"\s+vagy\s+|;", ekezettelen(szoveg)):
+        tagok = [t.strip() for t in ag.split(",") if t.strip()]
+        if tagok:
+            agak.append(tagok)
+    return agak
+
+
+def figyelt_parok():
+    """(film, jellemző) párok a CONFIG-ból vagy env-változóból.
+
+    Env-alak — a párokat pontosvessző, a filmet és a jellemzőt a függőleges
+    vonal választja el:
+
+        FIGYELT="Odüsszeia|feliratos ; Toy Story|"
+
+    Visszafelé kompatibilis: ha nincs FIGYELT, de van régi FILM_SZURO /
+    JELLEMZO_SZURO változó, azokból építjük a párokat — minden filmre
+    ugyanazzal a jellemzővel, ahogy korábban működött.
+    """
+    nyers = env("FIGYELT")
+    if nyers:
+        parok = []
+        for resz in nyers.split(";"):
+            if not resz.strip():
+                continue
+            film, _, jell = resz.partition("|")
+            if film.strip():
+                parok.append((film.strip(), jell.strip()))
+    elif env("FILM_SZURO") is not None or env("JELLEMZO_SZURO") is not None:
+        nyersf = env("FILM_SZURO")
+        filmek = ([] if nyersf is None or nyersf in ("*", "-", "mind", "all")
+                  else [x.strip() for x in nyersf.split(",") if x.strip()])
+        jell = env("JELLEMZO_SZURO") or ""
+        if jell in ("*", "-", "mind", "all"):
+            jell = ""
+        parok = [(f, jell) for f in filmek]
+    else:
+        parok = [(f, j) for f, j in FIGYELT if f and f.strip()]
+
+    return [{"film": f.strip(), "film_kulcs": ekezettelen(f),
+             "jellemzo": (j or "").strip(), "agak": jellemzo_agak(j)}
+            for f, j in parok]
+
+
+def illeszkedo_par(cim, parok):
+    """Melyik FIGYELT párokra illeszkedik ez a filmcím?"""
+    kulcs = ekezettelen(cim)
+    return [p for p in parok if p["film_kulcs"] in kulcs]
+
+
 def ekezettelen(s):
     """Kis-nagybetű és ékezet nélküli alak az összehasonlításhoz."""
     n = unicodedata.normalize("NFKD", str(s).casefold())
@@ -192,11 +246,7 @@ def listaz(kulcs, alap, elvalaszto=","):
 
 AKTIV = igaz("FIGYELD", FIGYELD)
 ELOTAG = env("CIMKE") or CIMKE
-FILMEK_SZURO = listaz("FILM_SZURO", FILM_SZURO)
-FILM_KULCS = [ekezettelen(x) for x in FILMEK_SZURO]
-JELLEMZOK_SZURO = listaz("JELLEMZO_SZURO", JELLEMZO_SZURO, ";")
-JELLEMZO_KULCS = [[r.strip() for r in ekezettelen(x).split(",") if r.strip()]
-                  for x in JELLEMZOK_SZURO]
+PAROK = figyelt_parok()
 HORIZONT = egesz("HORIZON_DAYS", HORIZON_DAYS)
 
 
@@ -293,7 +343,8 @@ def ertelmez(oldal):
             cim = html_modul.unescape(cim_m.group(1)).strip()
             filmek_info[film_id] = {"nev": cim,
                                     "link": f"{HOST}/film/{slug}-{film_id}"}
-            if FILM_KULCS and not any(k in ekezettelen(cim) for k in FILM_KULCS):
+            parok = illeszkedo_par(cim, PAROK)
+            if PAROK and not parok:
                 continue
             for jegy_id, belso in RE_IDOPONT.findall(doboz):
                 ido_m = RE_IDO.search(belso)
@@ -309,6 +360,7 @@ def ertelmez(oldal):
                 tipus = (tipus_m.group(1) if tipus_m else "").strip()
                 jellemzok = [TIPUSOK.get(tipus, tipus)] if tipus else ["szinkronos"]
                 info = {
+                    "parok": parok,
                     "kezdes": kezdes,
                     "film": cim,
                     "film_id": film_id,
@@ -365,10 +417,13 @@ def diagnosztika(oldal):
 
 def jellemzo_illeszkedik(info):
     """Üres szűrő = minden jó. Elemen belül ÉS, elemek között VAGY."""
-    if not JELLEMZO_KULCS:
-        return True
     szoveg = ekezettelen(" | ".join(info["jellemzok"] + [info["film"]]))
-    return any(all(f in szoveg for f in keszlet) for keszlet in JELLEMZO_KULCS)
+    for par in info["parok"]:
+        if not par["agak"]:
+            return True
+        if any(all(f in szoveg for f in ag) for ag in par["agak"]):
+            return True
+    return False
 
 
 # --- állapot ---------------------------------------------------------------
@@ -385,9 +440,7 @@ def state_betolt(utvonal):
             adat = json.load(f)
     except (FileNotFoundError, ValueError):
         return None
-    if ([ekezettelen(x) for x in adat.get("szuro", [])] != FILM_KULCS
-            or [ekezettelen(x) for x in adat.get("jellemzo", [])]
-               != [ekezettelen(x) for x in JELLEMZOK_SZURO]):
+    if adat.get("figyelt") != [[p["film"], p["jellemzo"]] for p in PAROK]:
         print("[info] a beallitas megvaltozott az allapotfajl ota, ujrakezdem",
               file=sys.stderr)
         return None
@@ -405,14 +458,13 @@ def state_ment(utvonal, adat):
     payload = {
         "frissitve": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mozi": "Cinema MOM",
-        "szuro": FILMEK_SZURO,
-        "jellemzo": JELLEMZOK_SZURO,
+        "figyelt": [[p["film"], p["jellemzo"]] for p in PAROK],
         "adat": dict(sorted(adat.items())),
     }
     try:
         with open(utvonal, encoding="utf-8") as f:
             regi = json.load(f)
-        if all(regi.get(k) == payload[k] for k in ("mozi", "szuro", "jellemzo", "adat")):
+        if all(regi.get(k) == payload[k] for k in ("mozi", "figyelt", "adat")):
             return False
     except (FileNotFoundError, ValueError):
         pass
@@ -497,7 +549,8 @@ def main():
               f"Egyetlen kerest sem kuldtem.")
         return 0
 
-    mit = " / ".join(FILMEK_SZURO) if FILMEK_SZURO else "minden film"
+    mit = " / ".join(f"{p['film']}" + (f" ({p['jellemzo']})" if p["jellemzo"] else "")
+                     for p in PAROK) or "minden film"
     print(f"[mozi] Cinema MOM — {mit}", file=sys.stderr)
 
     korabbi = state_betolt(args.state)
@@ -539,7 +592,7 @@ def main():
         """
         nevek = sorted({v["film"] for v in halmaz.values()})
         if not nevek:
-            return " / ".join(FILMEK_SZURO) or "minden film"
+            return " / ".join(p["film"] for p in PAROK) or "minden film"
         rovid = []
         for n in nevek:
             r = re.split(r"\s+[-–]\s+", n)[0].strip()
