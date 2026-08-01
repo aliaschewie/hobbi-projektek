@@ -69,37 +69,36 @@ jobs:
             echo "changed=no" >> "$GITHUB_OUTPUT"
           fi
 
-      # E-mail. A GitHub e-mailt küld az új issue-ról, ezért nem kell se SMTP,
-      # se app-jelszó.
+      # E-mail közvetlenül SMTP-vel, a saját Gmail-fiókodból.
       #
-      # PONTOSAN EGY LEVÉL: az issue-t se hozzá nem rendeljük senkihez, se le
-      # nem zárjuk — mindkettő külön értesítést váltana ki. Cserébe a repót
-      # figyelned kell (Watch > Custom > Issues), különben a megmaradó
-      # egyetlen levél sem érkezne meg.
+      # Miért nem GitHub-issue? Mert a GitHub a "watching" típusú értesítéseket
+      # nem minden fióknál kézbesíti e-mailben (a webes értesítés megjelenik,
+      # a levél nem), a hozzárendelés viszont két külön levelet váltana ki.
+      # Ez így pontosan egy levél, a mi tárgysorunkkal.
       #
-      # Az issue-k nyitva maradnak; ez egyben az értesítések naplója. Ha sok
-      # lesz, jelöld ki és zárd le őket kézzel: a saját műveletedről a GitHub
-      # nem küld e-mailt.
+      # Beállítás:
+      #   Settings > Secrets and variables > Actions
+      #     Secrets   fül -> GMAIL_APP_PASSWORD  (16 karakteres Google app-jelszó)
+      #     Variables fül -> GMAIL_USER          (a küldő Gmail-cím)
+      #                      EMAIL_TO            (opcionális, ha máshova kéred)
       - name: Értesítés e-mailben
+        id: notify
         if: steps.run.outputs.changed == 'yes'
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cim=$(grep -m1 '^=== ' /tmp/out.txt | sed 's/^=== //; s/ ===$//')
-          torzs=$(sed -n '/^=== /,$p' /tmp/out.txt)
-          gh label create mozimusor --color 1D76DB \
-            --description "Mozi műsorfigyelő értesítései" 2>/dev/null || true
-          url=$(gh issue create --title "$cim" --label mozimusor --body "$torzs" \
-                2>/dev/null \
-                || gh issue create --title "$cim" --body "$torzs")
-          echo "Issue: $url"
+          GMAIL_USER: ${{ vars.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ vars.EMAIL_TO }}
+        run: sed -n '/^=== /,$p' /tmp/out.txt | python3 notify_email.py
 
-      # Az állapotot csak az értesítés után írjuk vissza. Így ha a fenti lépés
-      # elhasal, a következő futás újrapróbálja — nem nyelünk el értesítést.
+      # Az állapotot csak SIKERES értesítés után írjuk vissza. Ha a levél nem
+      # ment el, a következő futás újrapróbálja ugyanazt — így nem nyelünk el
+      # értesítést egy átmeneti SMTP-hiba miatt.
       # A pull --rebase azért kell, mert a monorepóban más projekt workflowja
       # is commitolhat ugyanabba a percbe.
       - name: Állapot visszaírása
-        if: always() && steps.run.outcome == 'success'
+        if: |
+          always() && steps.run.outcome == 'success'
+          && steps.notify.outcome != 'failure'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
