@@ -88,6 +88,10 @@ FILM_SZURO = ["Odüsszeia"]
 
 JELLEMZO_SZURO = ["IMAX, feliratos"]
 
+# Minden időpont mellé odategye-e a közvetlen jegyvásárlási linkjét (1/0).
+# Bekapcsolva az értesítés hosszabb, de egy kattintással a pénztárnál vagy.
+JEGYLINK = 1
+
 
 # --- 4. Finomhangolás (ritkán kell hozzányúlni) ----------------------------
 
@@ -131,6 +135,8 @@ JELLEMZOK = {
     "3d": "3D", "dubbed": "szinkronos", "subbed": "feliratos",
     "original-lang": "eredeti nyelven", "sing-along": "sing-along",
 }
+# magyar címke -> nyers API-címke, a `filtered=` linkparaméterhez
+CIMKE_NYERS = {}
 
 TIMEOUT = 30
 RETRIES = 3
@@ -142,6 +148,10 @@ def ekezettelen(s):
     """Kis-nagybetű és ékezet nélküli alak az összehasonlításhoz."""
     n = unicodedata.normalize("NFKD", str(s).casefold())
     return "".join(c for c in n if not unicodedata.combining(c))
+
+
+CIMKE_NYERS.update({ekezettelen(cimke): nyers
+                    for nyers, cimke in JELLEMZOK.items()})
 
 
 def url_ertelmez(url):
@@ -250,6 +260,7 @@ BASE = f"{CFG['host']}/hu/data-api-service/v1/quickbook/{CFG['site']}"
 TELJES_MIN = egesz("FULL_MIN_EVENTS", FULL_MIN_EVENTS)
 SZORVANY_IS = egesz("NOTIFY_PARTIAL", NOTIFY_PARTIAL) == 1
 HORIZONT = egesz("HORIZON_DAYS", HORIZON_DAYS)
+JEGYLINKEK = egesz("JEGYLINK", JEGYLINK) == 1
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 KERES_SZUNET = float(os.environ.get("REQUEST_DELAY", "0.7"))
@@ -392,7 +403,7 @@ def film_vetitesek():
     film ugyan műsoron van, csak nem olyan formátumban, amilyet kértél.
     """
     talalt = {}
-    filmnevek = set()
+    filmek_info = {}          # {film_id: {"nev":..., "link":...}}
     film_osszes = 0
     napok = jatszasi_napok()
     for i, d in enumerate(napok):
@@ -405,7 +416,7 @@ def film_vetitesek():
             nev = f.get("name", "")
             if any(k in ekezettelen(nev) for k in CFG["szuro_kulcs"]):
                 egyezo[f.get("id")] = nev
-                filmnevek.add(nev)
+                filmek_info[f.get("id")] = {"nev": nev, "link": f.get("link", "")}
         if not egyezo:
             continue
         for e in esemenyek:
@@ -416,16 +427,62 @@ def film_vetitesek():
             info = {
                 "kezdes": e.get("eventDateTime", ""),
                 "film": egyezo[e["filmId"]],
+                "film_id": e.get("filmId", ""),
                 "terem": e.get("auditorium", ""),
                 "jellemzok": [JELLEMZOK[a] for a in nyers_cimkek if a in JELLEMZOK],
                 "link": e.get("bookingLink", ""),
             }
             if jellemzo_illeszkedik(info, nyers_cimkek):
                 talalt[str(e.get("id"))] = info
-    return talalt, sorted(filmnevek), napok, film_osszes
+    return talalt, filmek_info, napok, film_osszes
 
 
-def vetites_sor(info):
+def szuro_nyers_cimkek():
+    """A JELLEMZO_SZURO első feltétel-készlete nyers API-címkékre fordítva.
+
+    Az oldal `filtered=` paramétere ilyeneket vár: imax, subbed, 4dx, ...
+    Ha több VAGY-ágat adtál meg, csak az elsőt tudjuk linkbe tenni — az URL
+    egyetlen szűrőt ismer. Az értesítés tartalma ettől függetlenül mindet
+    figyelembe veszi.
+    """
+    if not CFG["jellemzo_kulcs"]:
+        return []
+    ki = []
+    for felt in CFG["jellemzo_kulcs"][0]:
+        if felt in JELLEMZOK:            # eleve nyers címkét írtak be
+            ki.append(felt)
+        elif felt in CIMKE_NYERS:        # magyar címke -> nyers
+            ki.append(CIMKE_NYERS[felt])
+    return ki
+
+
+def film_szuro_link(film_id, datum=None):
+    """A mozi jegyvásárló oldala, eleve a filmre és a jellemzőre szűrve.
+
+    Ilyen alakban, ahogy a böngésző címsorában is megjelenik:
+      /cinemas/arena/1132#/buy-tickets-by-cinema
+        ?in-cinema=1132&at=2026-08-01&for-movie=7460d2r&filtered=imax&view-mode=list
+
+    A `#` utáni rész a böngészőben futó alkalmazásnak szól, a szerver nem is
+    látja. Ha a Cinema City valaha átalakítja, az értesítésben ott marad
+    mellette a film saját oldala és a vetítésenkénti közvetlen jegylink is.
+    """
+    if not film_id:
+        return CFG["link"]
+    reszek = [f"in-cinema={CFG['szam']}"]
+    if datum:
+        reszek.append(f"at={datum}")
+    reszek.append(f"for-movie={film_id}")
+    nyers = szuro_nyers_cimkek()
+    if nyers:
+        reszek.append("filtered=" + ",".join(nyers))
+    reszek.append("view-mode=list")
+    return (f"{CFG['host']}/cinemas/{CFG['nev']}/{CFG['szam']}"
+            f"#/buy-tickets-by-cinema?" + "&".join(reszek))
+
+
+def vetites_sor(info, jegylink=None):
+    """Egy vetítés sora; JEGYLINK esetén a jegyvásárlási link külön sorban."""
     try:
         d, t = info["kezdes"].split("T")
         mikor = f"{nap_cimke(d)} {t[:5]}"
@@ -433,7 +490,11 @@ def vetites_sor(info):
         mikor = info["kezdes"]
     jell = f"  ({', '.join(info['jellemzok'])})" if info["jellemzok"] else ""
     terem = f"  {info['terem']}" if info["terem"] else ""
-    return f"  {mikor}{terem}{jell}"
+    sor = f"  {mikor}{terem}{jell}"
+    mutassuk = JEGYLINKEK if jegylink is None else jegylink
+    if mutassuk and info.get("link"):
+        sor += f"\n      jegy: {info['link']}"
+    return sor
 
 
 def mult_nyeses_vetitesek(vetitesek):
@@ -445,14 +506,27 @@ def film_mod(args):
     korabbi = state_betolt(args.state)
     elso_futas = korabbi is None
     regi = mult_nyeses_vetitesek(korabbi or {})
-    mostani, filmnevek, napok, film_osszes = film_vetitesek()
+    mostani, filmek_info, napok, film_osszes = film_vetitesek()
     if not napok:
         print("[hiba] az API egyetlen jatszasi napot sem adott vissza",
               file=sys.stderr)
         return 1
 
     ujak = {k: v for k, v in mostani.items() if k not in regi}
+    filmnevek = sorted(f["nev"] for f in filmek_info.values())
     cimke = " / ".join(filmnevek) if filmnevek else " / ".join(CFG["szuro"])
+
+    def labjegyzet(vonatkozo):
+        """Linkek az értesítés aljára: szűrt lista, film oldala."""
+        fid = next((v.get("film_id") for v in vonatkozo.values()
+                    if v.get("film_id")), None) or next(iter(filmek_info), None)
+        elso_datum = min((v["kezdes"][:10] for v in vonatkozo.values()
+                          if v.get("kezdes")), default=None)
+        sorok = [film_szuro_link(fid, elso_datum)]
+        film_oldal = (filmek_info.get(fid) or {}).get("link")
+        if film_oldal:
+            sorok.append(film_oldal)
+        return sorok
     jcimke = f" [{' vagy '.join(CFG['jellemzo'])}]" if CFG["jellemzo"] else ""
     # hány vetítést dobott el a jellemző-szűrő
     kiszurt = film_osszes - len(mostani)
@@ -477,7 +551,7 @@ def film_mod(args):
                   for k in sorted(ujak, key=lambda k: ujak[k]["kezdes"])]
         sorok += ["", f"Összesen {len(mostani)} illeszkedő időpont a következő "
                       f"{(date.fromisoformat(max(napok)) - date.today()).days} napban.",
-                  CFG["link"]]
+                  ""] + labjegyzet(ujak)
         kiir(sorok)
     elif args.force_report:
         print(f"[jelentes] {cimke}{jcimke}: {len(mostani)} idopont jelenleg")
