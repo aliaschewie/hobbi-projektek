@@ -1,5 +1,5 @@
 {
- "frissitve": "2026-08-01T16:16:38Z",
+ "frissitve": "2026-08-01T17:02:57Z",
  "mozi": "Etele Cinema",
  "szuro": [
   "Odüsszeia"
@@ -150,19 +150,6 @@
    "nyers": "speaking_type=ORG subtitles=HU",
    "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
   },
-  "5befb385-3ad3-43f7-97c9-405083ef5161": {
-   "kezdes": "2026-08-01T13:45:00",
-   "film": "Odüsszeia",
-   "film_id": "8f390074-97a5-4793-ae83-89c47db5eb7c",
-   "nyelv": "feliratos",
-   "terem": "18. terem",
-   "jellemzok": [
-    "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
-   ],
-   "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
-  },
   "5eef8717-04e0-4807-8a74-924ea2886c4b": {
    "kezdes": "2026-08-05T12:15:00",
    "film": "Odüsszeia",
@@ -306,19 +293,6 @@
    "nyers": "speaking_type=ORG subtitles=HU",
    "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
-  "bdb77b1f-7d37-4122-a09a-42c43c3e37fe": {
-   "kezdes": "2026-08-01T15:45:00",
-   "film": "Odüsszeia",
-   "film_id": "8f390074-97a5-4793-ae83-89c47db5eb7c",
-   "nyelv": "feliratos",
-   "terem": "3. terem",
-   "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
-   ],
-   "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
-  },
   "c8ad893a-5310-4870-b6d2-54caffad49cb": {
    "kezdes": "2026-08-05T17:15:00",
    "film": "Odüsszeia",
@@ -358,19 +332,6 @@
    "nyers": "speaking_type=ORG subtitles=HU",
    "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   },
-  "f183f94c-b917-458d-bf80-6efc0878794e": {
-   "kezdes": "2026-08-01T12:15:00",
-   "film": "Odüsszeia",
-   "film_id": "8f390074-97a5-4793-ae83-89c47db5eb7c",
-   "nyelv": "feliratos",
-   "terem": "3. terem",
-   "jellemzok": [
-    "feliratos",
-    "Twin seat,Standard Seat"
-   ],
-   "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
-  },
   "f75c16b1-8ccf-486d-8623-3dfd94965e12": {
    "kezdes": "2026-08-05T19:15:00",
    "film": "Odüsszeia",
@@ -383,19 +344,6 @@
    ],
    "nyers": "speaking_type=ORG subtitles=HU",
    "kereses": "feliratos | twin seat,standard seat | 3. terem | odusszeia | org | hu | 2d | 7.1 | en | 2d | twin seat,standard seat"
-  },
-  "ffaf9bb1-d60c-4f1a-93a6-c4d8abb6439e": {
-   "kezdes": "2026-08-01T17:15:00",
-   "film": "Odüsszeia",
-   "film_id": "8f390074-97a5-4793-ae83-89c47db5eb7c",
-   "nyelv": "feliratos",
-   "terem": "18. terem",
-   "jellemzok": [
-    "feliratos",
-    "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
-   ],
-   "nyers": "speaking_type=ORG subtitles=HU",
-   "kereses": "feliratos | recliners,premium single seat,premium twin seat,relax | 18. terem | odusszeia | org | hu | 2d | 7.1 | en | 3d,2d | recliners,premium single seat,premium twin seat,relax"
   }
  }
 }
