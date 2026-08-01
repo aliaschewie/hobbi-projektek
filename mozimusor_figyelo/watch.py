@@ -19,6 +19,17 @@ Csak stdlib, nincs pip függőség.
 #
 # ===========================================================================
 
+# --- 0. Be van-e kapcsolva ez a figyelő? -----------------------------------
+#
+# False esetén ez a szkript azonnal kilép, egyetlen kérést sem küld, és nem
+# ír e-mailt. A többi figyelő (pl. a MOM) ettől függetlenül fut tovább.
+FIGYELD = True
+
+# Az e-mail tárgyának előtagja, hogy egy pillantásból lásd, melyik moziról van
+# szó:  "[CCITY] Odüsszeia: 1 új időpont …"
+CIMKE = "CCITY"
+
+
 # --- 1. Melyik mozi? -------------------------------------------------------
 
 MOZI_NEVE = "arena"      # a név a link végén:  /cinemas/[arena]/1132
@@ -244,6 +255,14 @@ def config_osszerak():
     }
 
 
+def igaz(kulcs, alap):
+    """Logikai env-változó. Üres = nincs beállítva, marad a CONFIG."""
+    ertek = env(kulcs)
+    if ertek is None:
+        return bool(alap)
+    return ertek.lower() in ("1", "true", "igen", "yes", "on")
+
+
 def egesz(kulcs, alap):
     ertek = env(kulcs)
     if ertek is None:
@@ -254,6 +273,8 @@ def egesz(kulcs, alap):
         return int(alap)
 
 
+AKTIV = igaz("FIGYELD", FIGYELD)
+ELOTAG = env("CIMKE") or CIMKE
 CFG = config_osszerak()
 BASE = f"{CFG['host']}/hu/data-api-service/v1/quickbook/{CFG['site']}"
 TELJES_MIN = egesz("FULL_MIN_EVENTS", FULL_MIN_EVENTS)
@@ -328,6 +349,12 @@ def state_betolt(utvonal):
 
 
 def state_ment(utvonal, adat):
+    """Állapot mentése — de csak ha ÉRDEMBEN változott.
+
+    A `frissitve` időbélyeg minden futásnál más lenne, a workflow pedig minden
+    fájlváltozást commitol. Enélkül negyedóránként keletkezne egy commit, ami
+    semmit nem mond: napi ~96, évi ~35 000 üres bejegyzés a történetben.
+    """
     os.makedirs(os.path.dirname(utvonal) or ".", exist_ok=True)
     payload = {
         "frissitve": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -336,11 +363,21 @@ def state_ment(utvonal, adat):
         "jellemzo": CFG["jellemzo"], "teljes_min": TELJES_MIN,
         "adat": dict(sorted(adat.items())),
     }
+    kulcsok = ("mozi_neve", "mozi_szama", "mod", "szuro", "jellemzo",
+               "teljes_min", "adat")
+    try:
+        with open(utvonal, encoding="utf-8") as f:
+            regi = json.load(f)
+        if all(regi.get(k) == payload[k] for k in kulcsok):
+            return False
+    except (FileNotFoundError, ValueError):
+        pass
     tmp = utvonal + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=1)
         f.write("\n")
     os.replace(tmp, utvonal)
+    return True
 
 
 # --- értesítés ------------------------------------------------------------
@@ -538,7 +575,7 @@ def film_mod(args):
         return 0
 
     if ujak:
-        sorok = [f"=== {cimke}: {len(ujak)} új időpont{jcimke} ===",
+        sorok = [f"=== [{ELOTAG}] {cimke}: {len(ujak)} új időpont{jcimke} ===",
                  "",
                  gomb(ujak),
                  "",
@@ -621,11 +658,12 @@ def horizont_mod(args):
 
     sorok = []
     if friss_teljes:
-        sorok.append(f"=== {CFG['nev']}: új műsor, {len(friss_teljes)} nap ===")
+        sorok.append(f"=== [{ELOTAG}] {CFG['nev']}: új műsor, "
+                     f"{len(friss_teljes)} nap ===")
         sorok += [sor(d, i) for d, i in friss_teljes]
     if friss_szorvany and SZORVANY_IS:
         if not sorok:
-            sorok.append(f"=== {CFG['nev']}: előre nyitott előadás, "
+            sorok.append(f"=== [{ELOTAG}] {CFG['nev']}: előre nyitott előadás, "
                          f"{len(friss_szorvany)} nap ===")
         else:
             sorok += ["", "Emellett előre nyitott előadás:"]
@@ -661,6 +699,11 @@ def main():
     ap.add_argument("--force-report", action="store_true",
                     help="a jelenlegi teljes állapot kiírása változás nélkül is")
     args = ap.parse_args()
+
+    if not AKTIV:
+        print(f"[kikapcsolva] a FIGYELD hamis ({ELOTAG}), ez a figyelo nem fut. "
+              f"Egyetlen kerest sem kuldtem.")
+        return 0
 
     mit = (f"film: {' / '.join(CFG['szuro'])}" if CFG["mod"] == "film"
            else f"teljes horizont (teljes nap >= {TELJES_MIN} vetítés)")

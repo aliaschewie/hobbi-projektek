@@ -1,19 +1,23 @@
 name: Cinema City műsorfigyelő
 
-# Ez a workflow a monorepo `mozimusor_figyelo/` alkönyvtárában dolgozik.
-# Új projekthez: másold le ezt a fájlt más néven, és írd át a
-# `working-directory` értékét meg a `concurrency.group`-ot.
+# Két figyelő fut egymás után, közös e-mail-küldővel:
+#   watch.py  -> Cinema City Aréna   (JSON API)   [CCITY]
+#   mom.py    -> Cinema MOM          (HTML)       [MOM]
+#
+# Bármelyik kikapcsolható a saját fájlja tetején, a FIGYELD = False sorral —
+# vagy kód nélkül, a FIGYELD_CCITY / FIGYELD_MOM repo-változóval.
+#
+# A kettő független: ha az egyik elhasal, a másik akkor is lefut, és csak a
+# sikeres figyelő állapota íródik vissza.
 
 on:
   schedule:
-    # 15 percenként. Az 5 perc a GitHub által elfogadott minimum, de ingyenes
-    # repóknál a nagyon sűrű ütemezéseket hátrasorolják, és a gyakorlatban el
-    # sem indultak. A 15 perc megbízhatóbban lefut, és bőven elég: a mozi
-    # hetente írja ki a műsort, nem percenként.
-    #
-    # A GitHub ütemezése amúgy sem pontos — nagy terhelésnél késik, néha ki is
-    # hagy egy fordulót. Ez nem a mi hibánk, és nem is baj: az állapotot a
-    # seen.json őrzi, tehát semmi nem vész el a kihagyott futáson.
+    # A GitHub saját ütemezője ebben a repóban SOHA nem indult el (két és fél
+    # óra */5-tel, háromnegyed óra */15-tel: nulla futás), pedig minden
+    # beállítás rendben volt. Ezért a tényleges ébresztést a cron-job.org
+    # végzi, ami workflow_dispatch-csal hívja ezt a workflow-t.
+    # Ez a blokk tartaléknak marad: ha a GitHub egyszer mégis beindul, a
+    # concurrency miatt nem futnak egymásra.
     - cron: "*/15 * * * *"
 
   workflow_dispatch:
@@ -29,7 +33,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
 
 concurrency:
   group: mozimusor-figyelo
@@ -43,71 +46,118 @@ jobs:
   watch:
     runs-on: ubuntu-latest
 
-    # Mind opcionális. Ha nem állítod be, a watch.py tetején lévő CONFIG
-    # blokk érvényes. Beállítani kódmódosítás nélkül itt lehet:
-    #   Settings > Secrets and variables > Actions > Variables fül
     env:
-      MOZI_NEVE: ${{ vars.MOZI_NEVE }}
-      MOZI_SZAMA: ${{ vars.MOZI_SZAMA }}
-      FILM_SZURO: ${{ vars.FILM_SZURO }}        # üres = minden filmre megy
-      JELLEMZO_SZURO: ${{ vars.JELLEMZO_SZURO }} # üres = a CONFIG érvényes
-      JEGYLINK: ${{ vars.JEGYLINK }}
-      FULL_MIN_EVENTS: ${{ vars.FULL_MIN_EVENTS }}
-      NOTIFY_PARTIAL: ${{ vars.NOTIFY_PARTIAL }}
-      HORIZON_DAYS: ${{ vars.HORIZON_DAYS }}
-      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}     # opcionális mobil push
+      # --- közös: e-mail ---
+      GMAIL_USER: ${{ vars.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      EMAIL_TO: ${{ vars.EMAIL_TO }}
+      # Az üresen hagyott repo-változó NEM felülírás — a szkriptek CONFIG
+      # blokkja marad érvényben. Szűrő kikapcsolásához "*"-ot kell írni.
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Figyelő futtatása
-        id: run
+      # ================= Cinema City =================
+      - name: Cinema City figyelő
+        id: ccity
+        continue-on-error: true          # a MOM ettől függetlenül fusson
+        env:
+          FIGYELD: ${{ vars.FIGYELD_CCITY }}
+          MOZI_NEVE: ${{ vars.MOZI_NEVE }}
+          MOZI_SZAMA: ${{ vars.MOZI_SZAMA }}
+          FILM_SZURO: ${{ vars.FILM_SZURO }}
+          JELLEMZO_SZURO: ${{ vars.JELLEMZO_SZURO }}
+          FULL_MIN_EVENTS: ${{ vars.FULL_MIN_EVENTS }}
+          NOTIFY_PARTIAL: ${{ vars.NOTIFY_PARTIAL }}
+          HORIZON_DAYS: ${{ vars.HORIZON_DAYS }}
         run: |
           set -o pipefail
           python3 watch.py --state state/seen.json \
             ${{ inputs.force_report && '--force-report' || '' }} \
             ${{ inputs.seed && '--seed' || '' }} \
-            | tee /tmp/out.txt
-          if grep -q '^=== ' /tmp/out.txt; then
-            echo "changed=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=no" >> "$GITHUB_OUTPUT"
-          fi
+            | tee /tmp/ccity.txt
+          grep -q '^=== ' /tmp/ccity.txt \
+            && echo "changed=yes" >> "$GITHUB_OUTPUT" \
+            || echo "changed=no"  >> "$GITHUB_OUTPUT"
 
-      # E-mail közvetlenül SMTP-vel, a saját Gmail-fiókodból.
-      #
-      # Miért nem GitHub-issue? Mert a GitHub a "watching" típusú értesítéseket
-      # nem minden fióknál kézbesíti e-mailben (a webes értesítés megjelenik,
-      # a levél nem), a hozzárendelés viszont két külön levelet váltana ki.
-      # Ez így pontosan egy levél, a mi tárgysorunkkal.
-      #
-      # Beállítás:
-      #   Settings > Secrets and variables > Actions
-      #     Secrets   fül -> GMAIL_APP_PASSWORD  (16 karakteres Google app-jelszó)
-      #     Variables fül -> GMAIL_USER          (a küldő Gmail-cím)
-      #                      EMAIL_TO            (opcionális, ha máshova kéred)
-      - name: Értesítés e-mailben
-        id: notify
-        if: steps.run.outputs.changed == 'yes'
+      - name: Cinema City értesítés
+        id: ccity_mail
+        if: steps.ccity.outputs.changed == 'yes'
+        continue-on-error: true
+        run: sed -n '/^=== /,$p' /tmp/ccity.txt | python3 notify_email.py
+
+      # ================= Cinema MOM =================
+      - name: Cinema MOM figyelő
+        id: mom
+        continue-on-error: true
         env:
-          GMAIL_USER: ${{ vars.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          EMAIL_TO: ${{ vars.EMAIL_TO }}
-        run: sed -n '/^=== /,$p' /tmp/out.txt | python3 notify_email.py
+          FIGYELD: ${{ vars.FIGYELD_MOM }}
+          FILM_SZURO: ${{ vars.MOM_FILM_SZURO }}
+          JELLEMZO_SZURO: ${{ vars.MOM_JELLEMZO_SZURO }}
+        run: |
+          set -o pipefail
+          python3 mom.py --state state/mom.json \
+            ${{ inputs.force_report && '--force-report' || '' }} \
+            ${{ inputs.seed && '--seed' || '' }} \
+            | tee /tmp/mom.txt
+          grep -q '^=== ' /tmp/mom.txt \
+            && echo "changed=yes" >> "$GITHUB_OUTPUT" \
+            || echo "changed=no"  >> "$GITHUB_OUTPUT"
 
-      # Az állapotot csak SIKERES értesítés után írjuk vissza. Ha a levél nem
-      # ment el, a következő futás újrapróbálja ugyanazt — így nem nyelünk el
-      # értesítést egy átmeneti SMTP-hiba miatt.
-      # A pull --rebase azért kell, mert a monorepóban más projekt workflowja
-      # is commitolhat ugyanabba a percbe.
+      - name: Cinema MOM értesítés
+        id: mom_mail
+        if: steps.mom.outputs.changed == 'yes'
+        continue-on-error: true
+        run: sed -n '/^=== /,$p' /tmp/mom.txt | python3 notify_email.py
+
+      # ================= heti életjel =================
+      # Hetente egy rövid levél arról, hogy a rendszer fut. A levél ELMARADÁSA
+      # a riasztás: e nélkül a leállás pontosan úgy nézne ki, mint amikor
+      # nincs új vetítés. Nem kér le semmit a hálózatról, a két állapotfájlból
+      # dolgozik — ha megérkezik, az bizonyítja, hogy az ébresztő, a workflow
+      # és az e-mail-küldés is működik.
+      - name: Heti életjel
+        id: eletjel
+        continue-on-error: true
+        env:
+          ELETJEL: ${{ vars.ELETJEL }}
+          ELETJEL_NAPOK: ${{ vars.ELETJEL_NAPOK }}
+        run: |
+          set -o pipefail
+          python3 eletjel.py --state state/eletjel.json | tee /tmp/eletjel.txt
+          grep -q '^=== ' /tmp/eletjel.txt \
+            && echo "changed=yes" >> "$GITHUB_OUTPUT" \
+            || echo "changed=no"  >> "$GITHUB_OUTPUT"
+
+      - name: Életjel értesítés
+        id: eletjel_mail
+        if: steps.eletjel.outputs.changed == 'yes'
+        continue-on-error: true
+        run: sed -n '/^=== /,$p' /tmp/eletjel.txt | python3 notify_email.py
+
+      # ================= állapot =================
+      # Figyelőnként külön döntünk: csak annak az állapotát írjuk vissza,
+      # amelyiknél a lekérdezés ÉS az értesítés is rendben lement. Így ha egy
+      # levél nem ment el, a következő futás újrapróbálja ugyanazt — nem
+      # nyelünk el értesítést.
       - name: Állapot visszaírása
-        if: |
-          always() && steps.run.outcome == 'success'
-          && steps.notify.outcome != 'failure'
+        if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/seen.json
+          if [ "${{ steps.ccity.outcome }}" = "success" ] \
+             && [ "${{ steps.ccity_mail.outcome }}" != "failure" ]; then
+            git add state/seen.json
+          fi
+          if [ "${{ steps.mom.outcome }}" = "success" ] \
+             && [ "${{ steps.mom_mail.outcome }}" != "failure" ]; then
+            git add state/mom.json
+          fi
+          # Az életjel dátumát csak akkor rögzítjük, ha a levele el is ment —
+          # különben egy sikertelen küldés után egy hetet várnánk a következőre.
+          if [ "${{ steps.eletjel_mail.outcome }}" != "failure" ]; then
+            git add state/eletjel.json
+          fi
           if ! git diff --cached --quiet; then
             git commit -m "mozimusor: state $(date -u '+%F %H:%M')"
             for i in 1 2 3; do
@@ -117,4 +167,27 @@ jobs:
 
       - name: Összefoglaló
         if: always()
-        run: cat /tmp/out.txt >> "$GITHUB_STEP_SUMMARY" || true
+        run: |
+          {
+            echo '## Cinema City'; echo '```'; cat /tmp/ccity.txt 2>/dev/null || echo '(nem futott)'; echo '```'
+            echo '## Cinema MOM';  echo '```'; cat /tmp/mom.txt   2>/dev/null || echo '(nem futott)'; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A figyelőkön `continue-on-error` van, hogy egyik se akadályozza a
+      # másikat — de a futás akkor is legyen PIROS, ha valamelyik elhasalt.
+      # Enélkül egy elromlott értelmező zöld pipával, észrevétlenül maradna.
+      - name: Hibák jelzése
+        if: always()
+        run: |
+          hiba=0
+          if [ "${{ steps.ccity.outcome }}" = "failure" ]; then
+            echo "::error::A Cinema City figyelő elhasalt"; hiba=1
+          fi
+          if [ "${{ steps.mom.outcome }}" = "failure" ]; then
+            echo "::error::A Cinema MOM figyelő elhasalt (lehet, hogy átalakult az oldal)"; hiba=1
+          fi
+          if [ "${{ steps.ccity_mail.outcome }}" = "failure" ] \
+             || [ "${{ steps.mom_mail.outcome }}" = "failure" ]; then
+            echo "::error::E-mail küldés sikertelen"; hiba=1
+          fi
+          exit $hiba
