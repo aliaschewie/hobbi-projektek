@@ -1,0 +1,110 @@
+name: Cinema City műsorfigyelő
+
+# Ez a workflow a monorepo `mozimusor_figyelo/` alkönyvtárában dolgozik.
+# Új projekthez: másold le ezt a fájlt más néven, és írd át a
+# `working-directory` értékét meg a `concurrency.group`-ot.
+
+on:
+  schedule:
+    # 5 percenként — ez a GitHub Actions legsűrűbb megengedett ütemezése.
+    # Szándékosan nem kerek percben: a :00 a GitHub cron csúcsidőszaka,
+    # olyankor gyakran késik vagy eldobja a futást.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+
+  workflow_dispatch:
+    inputs:
+      force_report:
+        description: "Írja ki a jelenlegi teljes állapotot"
+        type: boolean
+        default: false
+      seed:
+        description: "Állapot újrarögzítése értesítés nélkül"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: mozimusor-figyelo
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: mozimusor_figyelo
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+
+    # Mind opcionális. Ha nem állítod be, a watch.py tetején lévő CONFIG
+    # blokk érvényes. Beállítani kódmódosítás nélkül itt lehet:
+    #   Settings > Secrets and variables > Actions > Variables fül
+    env:
+      MOZI_NEVE: ${{ vars.MOZI_NEVE }}
+      MOZI_SZAMA: ${{ vars.MOZI_SZAMA }}
+      FILM_SZURO: ${{ vars.FILM_SZURO }}        # üres = minden filmre megy
+      FULL_MIN_EVENTS: ${{ vars.FULL_MIN_EVENTS }}
+      NOTIFY_PARTIAL: ${{ vars.NOTIFY_PARTIAL }}
+      HORIZON_DAYS: ${{ vars.HORIZON_DAYS }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}     # opcionális mobil push
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Figyelő futtatása
+        id: run
+        run: |
+          set -o pipefail
+          python3 watch.py --state state/seen.json \
+            ${{ inputs.force_report && '--force-report' || '' }} \
+            ${{ inputs.seed && '--seed' || '' }} \
+            | tee /tmp/out.txt
+          if grep -q '^=== ' /tmp/out.txt; then
+            echo "changed=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      # E-mail. A GitHub e-mailt küld a rád szignált issue-ról, ezért nem kell
+      # se SMTP, se app-jelszó. Rögtön le is zárjuk, hogy ne gyűljenek —
+      # az e-mail addigra már elment.
+      - name: Értesítés e-mailben
+        if: steps.run.outputs.changed == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cim=$(grep -m1 '^=== ' /tmp/out.txt | sed 's/^=== //; s/ ===$//')
+          url=$(gh issue create \
+            --title "$cim" \
+            --assignee "${{ github.repository_owner }}" \
+            --label "mozimusor" \
+            --body "$(sed -n '/^=== /,$p' /tmp/out.txt)" 2>/dev/null \
+            || gh issue create \
+                 --title "$cim" \
+                 --assignee "${{ github.repository_owner }}" \
+                 --body "$(sed -n '/^=== /,$p' /tmp/out.txt)")
+          echo "Issue: $url"
+          gh issue close "$url"
+
+      # Az állapotot csak az értesítés után írjuk vissza. Így ha a fenti lépés
+      # elhasal, a következő futás újrapróbálja — nem nyelünk el értesítést.
+      # A pull --rebase azért kell, mert a monorepóban más projekt workflowja
+      # is commitolhat ugyanabba a percbe.
+      - name: Állapot visszaírása
+        if: always() && steps.run.outcome == 'success'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/seen.json
+          if ! git diff --cached --quiet; then
+            git commit -m "mozimusor: state $(date -u '+%F %H:%M')"
+            for i in 1 2 3; do
+              git pull --rebase --autostash && git push && break || sleep 5
+            done
+          fi
+
+      - name: Összefoglaló
+        if: always()
+        run: cat /tmp/out.txt >> "$GITHUB_STEP_SUMMARY" || true
