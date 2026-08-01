@@ -1,5 +1,11 @@
-name: Cinema City műsorfigyelő
+name: Mozi műsorfigyelő
 
+# FIGYELEM: a FÁJL neve (mozimusor-figyelo.yml) nem változhat! A cron-job.org
+# ezen a néven szólítja meg a GitHub API-ját:
+#   …/actions/workflows/mozimusor-figyelo.yml/dispatches
+# Ha átnevezed a fájlt, az ébresztő 404-et kap, és a figyelő némán leáll.
+# A fenti `name:` viszont csak megjelenítési címke, azt bátran írhatod.
+#
 # Két figyelő fut egymás után, közös e-mail-küldővel:
 #   watch.py  -> Cinema City Aréna   (JSON API)   [CCITY]
 #   mom.py    -> Cinema MOM          (HTML)       [MOM]
