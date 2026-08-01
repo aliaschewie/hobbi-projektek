@@ -23,11 +23,11 @@ Csak stdlib, nincs pip függőség.
 #
 # False esetén ez a szkript azonnal kilép, egyetlen kérést sem küld, és nem
 # ír e-mailt. A többi figyelő (pl. a MOM) ettől függetlenül fut tovább.
-FIGYELD = False        # <-- ideiglenesen kikapcsolva (Etele fejlesztése alatt)
+FIGYELD = True
 
-# Visszakapcsolás: írd vissza True-ra és pushold. Gyorsabb út kód nélkül:
-# Settings > Secrets and variables > Actions > Variables > FIGYELD_CCITY = true
-# (a kitöltött változó felülírja ezt a sort, push nélkül, azonnal)
+# Ideiglenes kikapcsolás kód nélkül, azonnal: Settings > Secrets and variables
+# > Actions > Variables > FIGYELD_CCITY = false. A kitöltött változó felülírja
+# ezt a sort, push nélkül.
 
 # Az e-mail tárgyának előtagja, hogy egy pillantásból lásd, melyik moziról van
 # szó:  "[CCITY] Odüsszeia: 1 új időpont …"

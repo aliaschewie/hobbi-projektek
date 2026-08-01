@@ -23,9 +23,22 @@ Csak stdlib, nincs pip függőség.
 #
 # False esetén azonnal kilép, egyetlen kérést sem küld, e-mailt nem ír.
 # A Cinema City-s figyelő (watch.py) ettől függetlenül fut tovább.
-FIGYELD = True
+FIGYELD = False
 
-# Az e-mail tárgyának előtagja: "[MOM] Odüsszeia: 1 új időpont …"
+# EZ A FIGYELŐ NEM A FELHŐBEN FUT, hanem a saját gépeden — ezért False.
+#
+# A cinemamom.hu az adatközponti IP-ket (így a GitHub futtatóit is) egy
+# „Kis türelmet…" című JavaScript-ellenőrző oldalra irányítja, a műsor
+# helyett. A te otthoni kapcsolatodat nem szűri, onnan a rendes oldal jön.
+# Ezt a védelmet nem kerüljük meg; helyette a gépeden fut, negyedóránként:
+#
+#   ~/Library/LaunchAgents/hu.mozimusor.mom.plist   (launchd ütemezés)
+#   mom_local.sh                                    (indító szkript)
+#
+# A helyi indító FIGYELD=true környezeti változóval hívja, ami felülírja ezt
+# a sort — így ugyanaz a fájl szolgál mindkét helyen.
+
+# Az e-mail tárgyának előtagja: "[MOM] The Odyssey: 1 új időpont …"
 CIMKE = "MOM"
 
 

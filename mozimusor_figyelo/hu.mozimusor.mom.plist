@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Cinema MOM figyelő — helyi ütemezés.
+
+  Helye:  ~/Library/LaunchAgents/hu.mozimusor.mom.plist
+  Napló:  ~/Library/Logs/mozimusor-mom.log
+
+  StartInterval = 900 másodperc (negyedóra). Alvó gépen nem fut; ébredéskor a
+  launchd egyszer bepótolja az elmaradt indítást — nem mindet, csak egyet.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>hu.mozimusor.mom</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>MOM_SZKRIPT_UTVONAL</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <!-- Betöltéskor egyszer azonnal lefut, hogy rögtön lásd, működik-e. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>MOM_NAPLO_UTVONAL</string>
+  <key>StandardErrorPath</key>
+  <string>MOM_NAPLO_UTVONAL</string>
+
+  <!-- Alacsony prioritás: ne vegyen el erőforrást a munkádtól. -->
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+</dict>
+</plist>
