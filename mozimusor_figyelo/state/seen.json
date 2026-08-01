@@ -1,5 +1,5 @@
 {
- "frissitve": "2026-08-01T07:12:20Z",
+ "frissitve": "2026-08-01T07:21:34Z",
  "mozi_neve": "arena",
  "mozi_szama": "1132",
  "mod": "film",
@@ -20,7 +20,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300663?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300663?lang=hu"
   },
   "300664": {
    "kezdes": "2026-08-03T10:00:00",
@@ -31,7 +31,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300664?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300664?lang=hu"
   },
   "300665": {
    "kezdes": "2026-08-05T10:00:00",
@@ -42,7 +42,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300665?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300665?lang=hu"
   },
   "300669": {
    "kezdes": "2026-08-01T17:00:00",
@@ -53,7 +53,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300669?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300669?lang=hu"
   },
   "300670": {
    "kezdes": "2026-08-03T17:00:00",
@@ -64,7 +64,18 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300670?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300670?lang=hu"
+  },
+  "300671": {
+   "kezdes": "2026-08-05T17:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300671?lang=hu"
   },
   "300883": {
    "kezdes": "2026-08-02T13:30:00",
@@ -75,7 +86,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300883?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300883?lang=hu"
   },
   "300884": {
    "kezdes": "2026-08-02T20:30:00",
@@ -86,7 +97,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300884?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300884?lang=hu"
   },
   "300918": {
    "kezdes": "2026-08-04T13:30:00",
@@ -97,7 +108,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300918?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300918?lang=hu"
   },
   "300920": {
    "kezdes": "2026-08-04T20:30:00",
@@ -108,7 +119,7 @@
     "IMAX",
     "feliratos"
    ],
-   "link": "https://tickets.cinemacity.hu/api/order/300920?lang=hu"
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/300920?lang=hu"
   }
  }
 }
