@@ -245,6 +245,28 @@ def nyelv_besorolas(v):
     return None, nyers
 
 
+def premium_e(v):
+    """Prémium terem-e a vetítés?
+
+    Az Etelénél kétféle terem van, sima és prémium. A TEREMSZÁM nem jó
+    kapaszkodó: több prémium terem is van, és a számozás bármikor változhat.
+    Ami viszont minden vetítés adatában ott van, az a székek típusa:
+
+        sima:     "Twin seat,Standard Seat"
+        prémium:  "Recliners,Premium Single Seat,Premium Twin Seat,Relax"
+
+    Ezért a „Premium" szó jelenlétét nézzük — a székfelsorolásban, a terem
+    típusában és a terem elnevezéseiben is, ha az API ad ilyet. Bármelyikben
+    szerepel, prémiumnak vesszük.
+    """
+    kepernyo = v.get("screen") or {}
+    darabok = [kepernyo.get("feature") or "", kepernyo.get("type") or ""]
+    for t in kepernyo.get("translations") or []:
+        if isinstance(t, dict):
+            darabok += [str(x) for x in t.values() if isinstance(x, str)]
+    return "premium" in ekezettelen(" ".join(darabok))
+
+
 def jellemzok_listaja(v, nyelv):
     """Amit az értesítésben KIÍRUNK.
 
@@ -263,12 +285,16 @@ def jellemzok_listaja(v, nyelv):
     ki = []
     if nyelv:
         ki.append(nyelv)
+    if premium_e(v):
+        ki.append("PRÉMIUM")
     kep = (v.get("print_type") or "").strip()
     if kep and kep.upper() != "2D":       # a 2D az alap, azt nem írjuk ki
         ki.append(kep)
     kepernyo = v.get("screen") or {}
     jellemzo = (kepernyo.get("feature") or "").strip()
-    if jellemzo and "," not in jellemzo and len(jellemzo) <= 20:
+    # csak rövid, egytagú jelölés (IMAX, 4DX) — a székfelsorolás nem
+    if jellemzo and "," not in jellemzo and len(jellemzo) <= 20 \
+            and "premium" not in ekezettelen(jellemzo):
         ki.append(jellemzo)
     return ki
 
