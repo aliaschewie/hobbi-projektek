@@ -54,6 +54,14 @@ JELLEMZO_SZURO = []
 
 HORIZON_DAYS = 60      # ennél távolabbi napokat figyelmen kívül hagyunk
 
+# Hány EGYMÁS UTÁNI sikertelen lekérés után jelezzünk hibát?
+#
+# A mozi szervere időnként 500-at ad. Ha minden ilyenre pirosra váltanánk, egy
+# fél napos üzemzavar negyedóránként egy riasztó e-mailt jelentene — holott
+# nincs vele teendőd, és nem is vész el semmi: az állapot csak sikeres futásnál
+# íródik vissza. 4 egymás utáni hiba ~1 óra; ennyi után már érdemes tudni róla.
+HIBA_TURES = 4
+
 # ===========================================================================
 #   Innentől nem kell hozzányúlni.
 # ===========================================================================
@@ -128,6 +136,7 @@ JELLEMZOK_SZURO = listaz("JELLEMZO_SZURO", JELLEMZO_SZURO, ";")
 JELLEMZO_KULCS = [[r.strip() for r in ekezettelen(x).split(",") if r.strip()]
                   for x in JELLEMZOK_SZURO]
 HORIZONT = egesz("HORIZON_DAYS", HORIZON_DAYS)
+TURES = egesz("HIBA_TURES", HIBA_TURES)
 
 ISMERETLEN_NYELVEK = set()   # amit a futás közben nem tudtunk besorolni
 
@@ -364,6 +373,40 @@ def state_ment(utvonal, adat):
     return True
 
 
+def hiba_utvonal(allapot):
+    """Az egymás utáni hibák számlálója, a fő állapot mellett külön fájlban.
+
+    Külön fájl, hogy a hibaszámláló írása soha ne keveredjen a vetítések
+    állapotával — egy sikertelen lekérésnél épp azt NEM szabad felülírni.
+    """
+    return os.path.splitext(allapot)[0] + "_hiba.json"
+
+
+def hibak_szama(allapot):
+    try:
+        with open(hiba_utvonal(allapot), encoding="utf-8") as f:
+            return int(json.load(f).get("egymas_utani", 0))
+    except (FileNotFoundError, ValueError, TypeError, KeyError):
+        return 0
+
+
+def hibak_beallit(allapot, n, uzenet=""):
+    """Csak akkor ír, ha változott — különben fölösleges commitokat szülne."""
+    if hibak_szama(allapot) == n and not uzenet:
+        return
+    utvonal = hiba_utvonal(allapot)
+    os.makedirs(os.path.dirname(utvonal) or ".", exist_ok=True)
+    adat = {"egymas_utani": n}
+    if uzenet:
+        adat["utolso"] = uzenet[:300]
+        adat["mikor"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    tmp = utvonal + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(adat, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    os.replace(tmp, utvonal)
+
+
 def multat_nyes(vetitesek):
     ma = date.today().isoformat()
     return {k: v for k, v in vetitesek.items() if v.get("kezdes", "")[:10] >= ma}
@@ -426,8 +469,23 @@ def main():
     try:
         valasz = get_json(API)
     except RuntimeError as e:
-        print(f"[HIBA] nem tudom lekerni az Etele API-t: {e}", file=sys.stderr)
+        # A mozi szervere nem elérhető vagy hibát ad. Ez NEM a mi hibánk, és
+        # nem is vész el semmi: az állapotot csak sikeres futásnál írjuk
+        # vissza, tehát a következő futás ugyanonnan folytatja. Ezért az első
+        # néhány alkalommal csendben tűrjük, és csak tartós kiesésnél szólunk.
+        n = hibak_szama(args.state) + 1
+        hibak_beallit(args.state, n, str(e))
+        if n < TURES:
+            print(f"[atmeneti hiba] az Etele API most nem valaszol "
+                  f"({n}. alkalom, {TURES}-nel szolok). Nem veszett el semmi, "
+                  f"a kovetkezo futas ujraprobalja.")
+            print(f"                {e}", file=sys.stderr)
+            return 0
+        print(f"[HIBA] az Etele API mar {n} egymas utani alkalommal nem "
+              f"valaszol: {e}", file=sys.stderr)
         return 1
+
+    hibak_beallit(args.state, 0)      # sikerült — a számláló nullázódik
 
     # Felderítő mód: mit ad valójában az API? Nem küld e-mailt, nem ment.
     if args.jellemzok:

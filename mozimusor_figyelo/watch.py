@@ -117,6 +117,14 @@ NOTIFY_PARTIAL = 1
 # Hány napra előre nézzünk.
 HORIZON_DAYS = 60
 
+# Hány EGYMÁS UTÁNI sikertelen lekérés után jelezzünk hibát?
+#
+# A mozi API-ja időnként hibázik vagy időtúllépéssel válaszol. Ha minden ilyenre
+# pirosra váltanánk, egy fél napos üzemzavar negyedóránként egy riasztó
+# e-mailt jelentene — holott nincs vele teendő, és nem is vész el semmi: az
+# állapot csak sikeres futásnál íródik vissza. 4 hiba ~1 óra.
+HIBA_TURES = 4
+
 # Hány napot kérdezzünk le egyszerre. Film módban minden játszási napra kell
 # egy kérés (mert meglévő naphoz is felvehetnek új időpontot), és ezek sorban
 # futtatva percekig tartottak. Párhuzamosan 3-4 szálon másodpercek alatt
@@ -298,6 +306,41 @@ NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 KERES_SZUNET = float(os.environ.get("REQUEST_DELAY", "0.7"))
 PARHUZAMOSSAG = egesz("PARHUZAM", PARHUZAM)
+TURES = egesz("HIBA_TURES", HIBA_TURES)
+
+
+def hiba_utvonal(allapot):
+    """Az egymás utáni hibák számlálója, a fő állapot mellett külön fájlban.
+
+    Külön fájl, hogy a hibaszámláló írása soha ne keveredjen a vetítések
+    állapotával — egy sikertelen lekérésnél épp azt NEM szabad felülírni.
+    """
+    return os.path.splitext(allapot)[0] + "_hiba.json"
+
+
+def hibak_szama(allapot):
+    try:
+        with open(hiba_utvonal(allapot), encoding="utf-8") as f:
+            return int(json.load(f).get("egymas_utani", 0))
+    except (FileNotFoundError, ValueError, TypeError, KeyError):
+        return 0
+
+
+def hibak_beallit(allapot, n, uzenet=""):
+    """Csak akkor ír, ha változott — különben fölösleges commitokat szülne."""
+    if hibak_szama(allapot) == n and not uzenet:
+        return
+    utvonal = hiba_utvonal(allapot)
+    os.makedirs(os.path.dirname(utvonal) or ".", exist_ok=True)
+    adat = {"egymas_utani": n}
+    if uzenet:
+        adat["utolso"] = uzenet[:300]
+        adat["mikor"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    tmp = utvonal + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(adat, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    os.replace(tmp, utvonal)
 
 
 # --- HTTP -----------------------------------------------------------------
@@ -744,7 +787,24 @@ def main():
 
     kezdet = time.monotonic()
     try:
-        return film_mod(args) if CFG["mod"] == "film" else horizont_mod(args)
+        eredmeny = film_mod(args) if CFG["mod"] == "film" else horizont_mod(args)
+        hibak_beallit(args.state, 0)      # sikerült — a számláló nullázódik
+        return eredmeny
+    except RuntimeError as e:
+        # A mozi API-ja nem elérhető vagy hibát ad. Ez NEM a mi hibánk, és nem
+        # is vész el semmi: az állapotot csak sikeres futásnál írjuk vissza.
+        # Ezért az első néhány alkalommal csendben tűrjük.
+        n = hibak_szama(args.state) + 1
+        hibak_beallit(args.state, n, str(e))
+        if n < TURES:
+            print(f"[atmeneti hiba] a Cinema City API most nem valaszol "
+                  f"({n}. alkalom, {TURES}-nel szolok). Nem veszett el semmi, "
+                  f"a kovetkezo futas ujraprobalja.")
+            print(f"                {e}", file=sys.stderr)
+            return 0
+        print(f"[HIBA] a Cinema City API mar {n} egymas utani alkalommal nem "
+              f"valaszol: {e}", file=sys.stderr)
+        return 1
     finally:
         # Mérünk, hogy ne tippelni kelljen, ha egyszer lassúnak tűnik.
         print(f"[ido] {LEKERDEZESEK + 1} keres, {PARHUZAMOSSAG} szalon, "
