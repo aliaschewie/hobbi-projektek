@@ -137,6 +137,7 @@ PARHUZAM = 4
 # ===========================================================================
 
 import argparse
+import gzip
 import json
 import os
 import re
@@ -310,12 +311,12 @@ TURES = egesz("HIBA_TURES", HIBA_TURES)
 
 
 def hiba_utvonal(allapot):
-    """Az egymás utáni hibák számlálója, a fő állapot mellett külön fájlban.
+    """Kísérő fájl a vetítések állapota mellé: hibaszámláló.
 
-    Külön fájl, hogy a hibaszámláló írása soha ne keveredjen a vetítések
-    állapotával — egy sikertelen lekérésnél épp azt NEM szabad felülírni.
+    Külön fájl, hogy a vetítések állapotát egy sikertelen lekérés SOHA ne
+    írhassa felül — épp azt kell érintetlenül hagyni.
     """
-    return os.path.splitext(allapot)[0] + "_hiba.json"
+    return os.path.splitext(allapot)[0] + "_meta.json"
 
 
 def hibak_szama(allapot):
@@ -352,11 +353,17 @@ def get_json(url):
         if kiserlet:
             time.sleep(1 + kiserlet)      # 1, 2 mp (volt: 2, 4)
         try:
-            req = urllib.request.Request(
-                url, headers={"User-Agent": UA, "Accept": "application/json"})
+            req = urllib.request.Request(url, headers={
+                "User-Agent": UA, "Accept": "application/json",
+                # Tömörítve kérjük: a JSON kiválóan tömöríthető, és ez a mozi
+                # szerverének sávszélességét kíméli, nem a miénket.
+                "Accept-Encoding": "gzip"})
             with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+                nyers = r.read()
+                if (r.headers.get("Content-Encoding") or "").lower() == "gzip":
+                    nyers = gzip.decompress(nyers)
+                return json.loads(nyers.decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, ValueError, OSError) as e:
             utolso = e
     raise RuntimeError(f"sikertelen lekeres: {url} ({utolso})")
 
@@ -521,6 +528,7 @@ def film_vetitesek():
     talalt = {}
     filmek_info = {}          # {film_id: {"nev":..., "link":...}}
     film_osszes = 0
+    _most = most_helyi()
     napok = jatszasi_napok()
     # Film módban MINDEN napot le kell kérdezni, mert meglévő naphoz is
     # felvehetnek új időpontot — ezért a párhuzamosítás itt a legértékesebb.
@@ -537,6 +545,8 @@ def film_vetitesek():
         for e in esemenyek:
             if e.get("filmId") not in egyezo:
                 continue
+            if mar_elkezdodott(e.get("eventDateTime", ""), _most):
+                continue          # ma mar lement — a mozi oldala sem mutatja
             film_osszes += 1
             nyers_cimkek = e.get("attributeIds", [])
             info = {
@@ -600,9 +610,44 @@ def vetites_sor(info):
     return f"  {mikor}{terem}{jell}"
 
 
+def most_helyi():
+    """A mostani idő budapesti óra szerint, időzóna nélküli alakban.
+
+    A futtató UTC-ben jár, a mozi műsora helyi időben van — a kettőt közvetlenül
+    összehasonlítani két óra tévedés lenne. Ha a rendszeren nincs időzóna-adat,
+    inkább nem szűrünk időre, mint hogy rosszul szűrjünk.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Budapest")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def mar_elkezdodott(kezdes, most=None):
+    """Igaz, ha a vetítés kezdete már elmúlt.
+
+    A forrás a MAI napra a már lement vetítéseket is visszaadja, a mozi
+    weboldala viszont csak a hátralévőket mutatja. Ezeket kiszűrjük: egy
+    délelőtt lement előadásról értesíteni értelmetlen, és a darabszámaink is
+    összevissza lennének a weboldaléhoz képest.
+    """
+    if most is None:
+        most = most_helyi()
+    if most is None:
+        return False
+    try:
+        return datetime.fromisoformat(kezdes) < most
+    except (ValueError, TypeError):
+        return False
+
+
 def mult_nyeses_vetitesek(vetitesek):
+    most = most_helyi()
     ma = date.today().isoformat()
-    return {k: v for k, v in vetitesek.items() if v.get("kezdes", "")[:10] >= ma}
+    return {k: v for k, v in vetitesek.items()
+            if v.get("kezdes", "")[:10] >= ma
+            and not mar_elkezdodott(v.get("kezdes", ""), most)}
 
 
 def film_mod(args):

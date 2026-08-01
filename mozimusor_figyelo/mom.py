@@ -270,6 +270,8 @@ def ertelmez(oldal):
     hatar_nap = (date.today() + timedelta(days=HORIZONT)).isoformat()
 
     talalt, filmek_info, osszes_doboz, film_osszes = {}, {}, 0, 0
+    _most = most_helyi()
+    elmult = 0          # ma már lement vetítések — az oldal sem mutatja őket
     for i, (tab, _kezd, veg) in enumerate(hatarok):
         blokk_veg = hatarok[i + 1][1] if i + 1 < len(hatarok) else len(oldal)
         blokk = oldal[veg:blokk_veg]
@@ -299,11 +301,15 @@ def ertelmez(oldal):
                     continue
                 ido = ido_m.group(1)
                 tipus_m = RE_TIPUS.search(belso)
+                kezdes = f"{nap}T{ido.strip()}:00"
+                if mar_elkezdodott(kezdes, _most):
+                    elmult += 1   # ma mar lement — a mozi oldala sem mutatja
+                    continue
                 film_osszes += 1
                 tipus = (tipus_m.group(1) if tipus_m else "").strip()
                 jellemzok = [TIPUSOK.get(tipus, tipus)] if tipus else ["szinkronos"]
                 info = {
-                    "kezdes": f"{nap}T{ido.strip()}:00",
+                    "kezdes": kezdes,
                     "film": cim,
                     "film_id": film_id,
                     "jellemzok": jellemzok,
@@ -315,6 +321,9 @@ def ertelmez(oldal):
     if osszes_doboz == 0:
         raise ErtelmezesiHiba("a napblokkokban egyetlen filmdobozt sem talalok "
                               '(class="movie-box") — valoszinuleg atalakult az oldal')
+    if elmult:
+        print(f"[info] {elmult} ma mar lement vetites kihagyva "
+              f"(a mozi weboldala sem mutatja oket)", file=sys.stderr)
     return talalt, filmek_info, sorted(set(tabok.values())), film_osszes
 
 
@@ -415,9 +424,44 @@ def state_ment(utvonal, adat):
     return True
 
 
+def most_helyi():
+    """A mostani idő budapesti óra szerint, időzóna nélküli alakban.
+
+    A futtató UTC-ben jár, a mozi műsora helyi időben van — a kettőt közvetlenül
+    összehasonlítani két óra tévedés lenne. Ha a rendszeren nincs időzóna-adat,
+    inkább nem szűrünk időre, mint hogy rosszul szűrjünk.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Budapest")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def mar_elkezdodott(kezdes, most=None):
+    """Igaz, ha a vetítés kezdete már elmúlt.
+
+    A forrás a MAI napra a már lement vetítéseket is visszaadja, a mozi
+    weboldala viszont csak a hátralévőket mutatja. Ezeket kiszűrjük: egy
+    délelőtt lement előadásról értesíteni értelmetlen, és a darabszámaink is
+    összevissza lennének a weboldaléhoz képest.
+    """
+    if most is None:
+        most = most_helyi()
+    if most is None:
+        return False
+    try:
+        return datetime.fromisoformat(kezdes) < most
+    except (ValueError, TypeError):
+        return False
+
+
 def multat_nyes(vetitesek):
+    most = most_helyi()
     ma = date.today().isoformat()
-    return {k: v for k, v in vetitesek.items() if v.get("kezdes", "")[:10] >= ma}
+    return {k: v for k, v in vetitesek.items()
+            if v.get("kezdes", "")[:10] >= ma
+            and not mar_elkezdodott(v.get("kezdes", ""), most)}
 
 
 # --- megjelenítés ----------------------------------------------------------

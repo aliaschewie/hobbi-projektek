@@ -67,6 +67,7 @@ HIBA_TURES = 4
 # ===========================================================================
 
 import argparse
+import gzip
 import json
 import os
 import re
@@ -147,19 +148,54 @@ class ErtelmezesiHiba(Exception):
 
 # --- letöltés --------------------------------------------------------------
 
-def get_json(url):
+VALTOZATLAN = object()      # a szerver szerint semmi nem változott (304)
+
+
+def get_json(url, etag=None):
+    """Lekérés gzip-pel és feltételes kéréssel.
+
+    Két dolog miatt más, mint egy sima letöltés — mindkettő a mozi szerverét
+    kíméli, nem minket:
+
+    `Accept-Encoding: gzip` — ez a végpont az EGÉSZ műsort adja, minden filmre.
+    Tömörítve a töredéke, és a JSON kiválóan tömöríthető.
+
+    `If-None-Match` — ha a szerver ad ETag-et, a következő kérésnél
+    visszaküldjük. Ha közben nem változott a műsor, `304`-et kapunk **törzs
+    nélkül**: a szervernek nem kell újra összeállítania és kiküldenie az egész
+    választ. Ha nem támogatja, egyszerűen figyelmen kívül hagyja.
+
+    Visszatérés: a JSON, vagy VALTOZATLAN, ha 304 jött. Az ETag-et a hívó a
+    `get_json.utolso_etag`-ból veheti ki.
+    """
+    get_json.utolso_etag = etag
     utolso = None
     for kiserlet in range(RETRIES):
         if kiserlet:
             time.sleep(1 + kiserlet)
+        fejlecek = {"User-Agent": UA, "Accept": "application/json",
+                    "Accept-Encoding": "gzip"}
+        if etag:
+            fejlecek["If-None-Match"] = etag
         try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": UA, "Accept": "application/json"})
+            req = urllib.request.Request(url, headers=fejlecek)
             with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+                get_json.utolso_etag = r.headers.get("ETag") or etag
+                nyers = r.read()
+                if (r.headers.get("Content-Encoding") or "").lower() == "gzip":
+                    nyers = gzip.decompress(nyers)
+                return json.loads(nyers.decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 304:
+                return VALTOZATLAN
+            utolso = e
+        except (urllib.error.URLError, TimeoutError, ValueError,
+                OSError) as e:
             utolso = e
     raise RuntimeError(f"sikertelen lekeres: {url} ({utolso})")
+
+
+get_json.utolso_etag = None
 
 
 # --- értelmezés ------------------------------------------------------------
@@ -267,6 +303,8 @@ def ertelmez(valasz):
 
     talalt, filmek_info, film_osszes, napok = {}, {}, 0, set()
     osszes_vetites = 0
+    most = most_helyi()
+    elmult = 0          # ma már lement vetítések — a weboldal sem mutatja őket
 
     for bejegyzes in bejegyzesek:
         if not isinstance(bejegyzes, dict):
@@ -288,6 +326,10 @@ def ertelmez(valasz):
             ido = (v.get("screening_time_time") or "").strip()
             if not nap or not ido or not (ma <= nap <= hatar):
                 continue
+            kezdes = f"{nap}T{ido}:00" if len(ido) == 5 else f"{nap}T{ido}"
+            if mar_elkezdodott(kezdes, most):
+                elmult += 1
+                continue
             napok.add(nap)
             film_osszes += 1
 
@@ -301,7 +343,7 @@ def ertelmez(valasz):
                 continue
 
             info = {
-                "kezdes": f"{nap}T{ido}:00" if len(ido) == 5 else f"{nap}T{ido}",
+                "kezdes": kezdes,
                 "film": cim,
                 "film_id": film_id,
                 "nyelv": nyelv or "?",
@@ -318,6 +360,9 @@ def ertelmez(valasz):
         raise ErtelmezesiHiba(
             "egyetlen vetitest sem talalok a valaszban — valoszinuleg "
             "atalakult az API valaszanak szerkezete")
+    if elmult:
+        print(f"[info] {elmult} ma mar lement vetites kihagyva "
+              f"(a mozi weboldala sem mutatja oket)", file=sys.stderr)
     return talalt, filmek_info, sorted(napok), film_osszes
 
 
@@ -373,43 +418,91 @@ def state_ment(utvonal, adat):
     return True
 
 
-def hiba_utvonal(allapot):
-    """Az egymás utáni hibák számlálója, a fő állapot mellett külön fájlban.
+def meta_utvonal(allapot):
+    """Kísérő fájl a vetítések állapota mellé: hibaszámláló és ETag.
 
-    Külön fájl, hogy a hibaszámláló írása soha ne keveredjen a vetítések
-    állapotával — egy sikertelen lekérésnél épp azt NEM szabad felülírni.
+    Külön fájlban, hogy a vetítések állapotát egy sikertelen lekérés SOHA ne
+    írhassa felül — épp azt kell érintetlenül hagyni.
     """
-    return os.path.splitext(allapot)[0] + "_hiba.json"
+    return os.path.splitext(allapot)[0] + "_meta.json"
 
 
-def hibak_szama(allapot):
+def meta_olvas(allapot):
     try:
-        with open(hiba_utvonal(allapot), encoding="utf-8") as f:
-            return int(json.load(f).get("egymas_utani", 0))
-    except (FileNotFoundError, ValueError, TypeError, KeyError):
-        return 0
+        with open(meta_utvonal(allapot), encoding="utf-8") as f:
+            adat = json.load(f)
+            return adat if isinstance(adat, dict) else {}
+    except (FileNotFoundError, ValueError):
+        return {}
 
 
-def hibak_beallit(allapot, n, uzenet=""):
+def meta_ir(allapot, **mezok):
     """Csak akkor ír, ha változott — különben fölösleges commitokat szülne."""
-    if hibak_szama(allapot) == n and not uzenet:
+    regi = meta_olvas(allapot)
+    uj = {**regi, **{k: v for k, v in mezok.items() if v is not None}}
+    if uj == regi:
         return
-    utvonal = hiba_utvonal(allapot)
+    utvonal = meta_utvonal(allapot)
     os.makedirs(os.path.dirname(utvonal) or ".", exist_ok=True)
-    adat = {"egymas_utani": n}
-    if uzenet:
-        adat["utolso"] = uzenet[:300]
-        adat["mikor"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     tmp = utvonal + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(adat, f, ensure_ascii=False, indent=1)
+        json.dump(uj, f, ensure_ascii=False, indent=1)
         f.write("\n")
     os.replace(tmp, utvonal)
 
 
+def hibak_szama(allapot):
+    try:
+        return int(meta_olvas(allapot).get("egymas_utani", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def hibak_beallit(allapot, n, uzenet=""):
+    meta_ir(allapot, egymas_utani=n,
+            utolso_hiba=(uzenet[:300] if uzenet else None),
+            hiba_mikor=(datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        if uzenet else None))
+
+
+def most_helyi():
+    """A mostani idő budapesti óra szerint, időzóna nélküli alakban.
+
+    A futtató UTC-ben jár, a mozi műsora helyi időben van — a kettőt közvetlenül
+    összehasonlítani két óra tévedés lenne. Ha a rendszeren nincs időzóna-adat,
+    inkább nem szűrünk időre, mint hogy rosszul szűrjünk.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Budapest")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def mar_elkezdodott(kezdes, most=None):
+    """Igaz, ha a vetítés kezdete már elmúlt.
+
+    Az API a MAI napra a már lement vetítéseket is visszaadja, a mozi
+    weboldala viszont csak a hátralévőket mutatja. Ezeket kiszűrjük: egy
+    délelőtt lement előadásról értesíteni értelmetlen, és a darabszámaink is
+    összevissza lennének a weboldaléhoz képest.
+    """
+    if most is None:
+        most = most_helyi()
+    if most is None:
+        return False
+    try:
+        return datetime.fromisoformat(kezdes) < most
+    except (ValueError, TypeError):
+        return False
+
+
 def multat_nyes(vetitesek):
+    most = most_helyi()
     ma = date.today().isoformat()
-    return {k: v for k, v in vetitesek.items() if v.get("kezdes", "")[:10] >= ma}
+    return {k: v for k, v in vetitesek.items()
+            if v.get("kezdes", "")[:10] >= ma
+            and not mar_elkezdodott(v.get("kezdes", ""), most)}
 
 
 # --- megjelenítés ----------------------------------------------------------
@@ -467,7 +560,15 @@ def main():
     print(f"[mozi] Etele Cinema — {mit} ({nyelv_cimke})", file=sys.stderr)
 
     try:
-        valasz = get_json(API)
+        # Ha van korábbi ETag, feltételes kérést küldünk: változatlan műsornál
+        # a szervernek nem kell összeállítania és kiküldenie az egész választ.
+        regi_etag = meta_olvas(args.state).get("etag")
+        valasz = get_json(API, etag=None if args.jellemzok else regi_etag)
+        if valasz is VALTOZATLAN:
+            hibak_beallit(args.state, 0)
+            print("[nincs valtozas] a szerver szerint valtozatlan a musor "
+                  "(304), le sem toltottem ujra.")
+            return 0
     except RuntimeError as e:
         # A mozi szervere nem elérhető vagy hibát ad. Ez NEM a mi hibánk, és
         # nem is vész el semmi: az állapotot csak sikeres futásnál írjuk
@@ -485,7 +586,11 @@ def main():
               f"valaszol: {e}", file=sys.stderr)
         return 1
 
-    hibak_beallit(args.state, 0)      # sikerült — a számláló nullázódik
+    # Sikerült: a hibaszámláló nullázódik, az ETag-et eltesszük a következő
+    # kéréshez. Az ETag-et CSAK sikeres feldolgozás után mentenénk el, de itt
+    # még nem tudjuk, sikerül-e az értelmezés — ezért lentebb, a végén írjuk.
+    hibak_beallit(args.state, 0)
+    uj_etag = get_json.utolso_etag
 
     # Felderítő mód: mit ad valójában az API? Nem küld e-mailt, nem ment.
     if args.jellemzok:
@@ -517,6 +622,7 @@ def main():
 
     if args.seed or (elso_futas and not args.force_report):
         state_ment(args.state, mostani)
+        meta_ir(args.state, etag=uj_etag)
         print(f"[seed] allapot elmentve: {len(mostani)} vetites ({cimke}). "
               f"Ertesites nem ment ki.")
         reszletek()
@@ -547,6 +653,9 @@ def main():
               f"({kiszurt} kiszurve), {len(napok)} nap atnezve.")
 
     state_ment(args.state, mostani)
+    # Az ETag-et csak most mentjük — ha az értelmezés elhasalt volna, fentebb
+    # már kiléptünk, és a következő futás így teljes választ kér újra.
+    meta_ir(args.state, etag=uj_etag)
     return 0
 
 

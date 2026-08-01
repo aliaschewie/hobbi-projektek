@@ -174,9 +174,9 @@ jobs:
           if [ "${{ steps.eletjel_mail.outcome }}" != "failure" ]; then
             git add state/eletjel.json 2>/dev/null || true
           fi
-          # A hibaszamlalokat mindig visszairjuk: azok epp akkor fontosak,
-          # amikor a figyelo NEM futott le rendben.
-          git add state/seen_hiba.json state/etele_hiba.json 2>/dev/null || true
+          # A meta-fajlokat (hibaszamlalo, ETag) mindig visszairjuk: azok epp akkor
+          # fontosak, amikor a figyelo NEM futott le rendben.
+          git add state/seen_meta.json state/etele_meta.json 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m "mozimusor: state $(date -u '+%F %H:%M')"
             for i in 1 2 3; do
