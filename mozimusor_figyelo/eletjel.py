@@ -28,7 +28,10 @@ NAPOK_KOZOTT = 7           # ennyi naponta egyszer
 # Melyik figyelőkről számoljon be. (állapotfájl, előtag, olvasható név)
 FORRASOK = [
     ("state/seen.json", "CCITY", "Cinema City Aréna"),
-    ("state/mom.json", "MOM", "Cinema MOM"),
+    ("state/etele.json", "ETELE", "Etele Cinema"),
+    # A MOM nem a felhőben fut, hanem a Macen (a cinemamom.hu szűri az
+    # adatközponti IP-ket) — az állapotfájlja nincs a repóban, ezért itt
+    # nem tud róla beszámolni. Részletek: HELYI-MOM.md
 ]
 
 REPO = "aliaschewie/hobbi-projektek"
