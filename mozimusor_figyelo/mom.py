@@ -96,14 +96,44 @@ NAPOK = ["hé", "ke", "sze", "csü", "pé", "szo", "va"]
 TIPUSOK = {"F": "feliratos", "M": "magyarul", "E": "eredeti nyelven"}
 
 # --- HTML-minták. Ha az oldal átalakul, itt kell javítani. ------------------
-RE_TAB = re.compile(r'data-tab="(\d+)"\s+data-date="(\d{4}-\d{2}-\d{2})"')
-RE_NAPBLOKK = re.compile(r'<div class="day tab-(\d+)[^"]*">')
-RE_FILMDOBOZ = re.compile(r'<div class="movie-box">')
-RE_FILMLINK = re.compile(r'href="film/([a-z0-9\-]+?)-(\d+)"')
-RE_CIM = re.compile(r'<div class="title"><a[^>]*>([^<]*)</a>')
+#
+# Szándékosan MEGENGEDŐEK. A HTML-ben az attribútumok sorrendje tetszőleges,
+# és bármikor bekerülhet egy plusz osztálynév vagy adat-attribútum. Egy olyan
+# minta, ami a kettőt egymás mellett várja (`data-tab="1" data-date="…"`),
+# egy mentett fájlon még illeszkedik, élesben viszont elhasal — ez pontosan
+# meg is történt az első éles futásnál.
+#
+# Ezért a div-eket egyesével nézzük végig, és a nyitótagon belül keressük az
+# attribútumokat, egymástól függetlenül.
+
+RE_DIV = re.compile(r"<div\b[^>]*>", re.I)
+RE_A_TAB = re.compile(r"""data-tab\s*=\s*["'](\d+)["']""", re.I)
+RE_A_DATUM = re.compile(r"""data-date\s*=\s*["'](\d{4}-\d{2}-\d{2})["']""", re.I)
+RE_A_CLASS = re.compile(r"""class\s*=\s*["']([^"']*)["']""", re.I)
+RE_TAB_N = re.compile(r"^tab-(\d+)$")
+
+RE_FILMLINK = re.compile(r"""href\s*=\s*["'][^"']*?film/([a-z0-9\-]+?)-(\d+)["'#]""", re.I)
+RE_CIM = re.compile(r"""class\s*=\s*["']title["'][^>]*>\s*<a[^>]*>([^<]*)</a>""", re.I)
+# A vetítéslinket EGÉSZBEN fogjuk meg (a záró </a>-ig), és a belsejéből
+# szedjük ki az időt meg a típusjelet. Ha egyetlen mintával próbálnánk mindet
+# elkapni, az opcionális típus-csoport mindig üresen illeszkedne — így minden
+# feliratos vetítés csendben „szinkronos"-nak látszana.
 RE_IDOPONT = re.compile(
-    r'<a href="jegyrendeles/(\d+)">\s*<span class="time"><em>([^<]*)</em></span>'
-    r'\s*(?:<span class="type">([^<]*)</span>)?')
+    r"""<a[^>]*href\s*=\s*["'][^"']*?jegyrendeles/(\d+)["'][^>]*>(.*?)</a>""",
+    re.I | re.S)
+RE_IDO = re.compile(r"<em[^>]*>([^<]*)</em>", re.I)
+RE_TIPUS = re.compile(r"""class\s*=\s*["']type["'][^>]*>([^<]*)<""", re.I)
+
+
+def div_tagek(oldal):
+    """Végigmegy a nyitó <div> tageken, és visszaadja: (pozíció_vége, tag)."""
+    for m in RE_DIV.finditer(oldal):
+        yield m.end(), m.group(0)
+
+
+def osztalyok(tag):
+    m = RE_A_CLASS.search(tag)
+    return m.group(1).split() if m else []
 
 
 def ekezettelen(s):
@@ -199,15 +229,29 @@ def ertelmez(oldal):
       - a dobozban a film linkje adja az azonosítót: href="film/<slug>-<id>"
       - az időpontok: <a href="jegyrendeles/<id>"><span class="time"><em>12:00
     """
-    tabok = dict(RE_TAB.findall(oldal))
+    # Egyetlen végigmenés a div-eken: közben gyűjtjük a tab->dátum párokat,
+    # a napblokkok határait és a filmdobozok helyét.
+    tabok, hatarok, dobozok = {}, [], []
+    for veg, tag in div_tagek(oldal):
+        t, d = RE_A_TAB.search(tag), RE_A_DATUM.search(tag)
+        if t and d:                                   # napválasztó fül
+            tabok[t.group(1)] = d.group(1)
+        oszt = osztalyok(tag)
+        if "day" in oszt:                             # napblokk: day + tab-N
+            for o in oszt:
+                sz = RE_TAB_N.match(o)
+                if sz:
+                    hatarok.append((sz.group(1), veg - len(tag), veg))
+                    break
+        if "movie-box" in oszt:
+            dobozok.append(veg - len(tag))
+
     if not tabok:
         raise ErtelmezesiHiba("egyetlen napvalaszto fulet sem talalok "
-                              "(data-tab / data-date)")
-
-    # a napblokkok kezdőpozíciói, hogy szeletelni tudjunk
-    hatarok = [(m.group(1), m.start(), m.end()) for m in RE_NAPBLOKK.finditer(oldal)]
+                              "(data-tab + data-date egy div-en belul)")
     if not hatarok:
-        raise ErtelmezesiHiba('egyetlen napblokkot sem talalok (class="day tab-N")')
+        raise ErtelmezesiHiba('egyetlen napblokkot sem talalok '
+                              '(olyan div, aminek az osztalyai kozt "day" es "tab-N" is van)')
 
     ma = date.today().isoformat()
     hatar_nap = (date.today() + timedelta(days=HORIZONT)).isoformat()
@@ -220,8 +264,9 @@ def ertelmez(oldal):
         if not nap or not (ma <= nap <= hatar_nap):
             continue
 
-        # a blokkot filmdobozokra vágjuk
-        pozok = [m.start() for m in RE_FILMDOBOZ.finditer(blokk)]
+        # a blokkot filmdobozokra vágjuk (a globálisan gyűjtött pozíciókból)
+        eleje, vege = veg, blokk_veg
+        pozok = [p - eleje for p in dobozok if eleje <= p < vege]
         for j, p in enumerate(pozok):
             doboz = blokk[p:pozok[j + 1] if j + 1 < len(pozok) else len(blokk)]
             osszes_doboz += 1
@@ -235,9 +280,14 @@ def ertelmez(oldal):
                                     "link": f"{HOST}/film/{slug}-{film_id}"}
             if FILM_KULCS and not any(k in ekezettelen(cim) for k in FILM_KULCS):
                 continue
-            for jegy_id, ido, tipus in RE_IDOPONT.findall(doboz):
+            for jegy_id, belso in RE_IDOPONT.findall(doboz):
+                ido_m = RE_IDO.search(belso)
+                if not ido_m:
+                    continue
+                ido = ido_m.group(1)
+                tipus_m = RE_TIPUS.search(belso)
                 film_osszes += 1
-                tipus = (tipus or "").strip()
+                tipus = (tipus_m.group(1) if tipus_m else "").strip()
                 jellemzok = [TIPUSOK.get(tipus, tipus)] if tipus else ["szinkronos"]
                 info = {
                     "kezdes": f"{nap}T{ido.strip()}:00",
@@ -253,6 +303,42 @@ def ertelmez(oldal):
         raise ErtelmezesiHiba("a napblokkokban egyetlen filmdobozt sem talalok "
                               '(class="movie-box") — valoszinuleg atalakult az oldal')
     return talalt, filmek_info, sorted(set(tabok.values())), film_osszes
+
+
+def diagnosztika(oldal):
+    """Mit is kaptunk valójában? — sorok a naplóba, hiba esetén.
+
+    A GitHub futtatója adatközponti IP-ről kér, a te géped otthonról. Előfordul,
+    hogy a szerver nem ugyanazt adja a kettőnek: sütifal, robotvédelem,
+    átirányítás. Ilyenkor a szerkezeti minták hiánya nem azt jelenti, hogy
+    átalakult az oldal — hanem azt, hogy oda se jutottunk el.
+    """
+    jelek = {
+        "napválasztó (data-date)": "data-date=",
+        "filmdoboz (movie-box)": 'class="movie-box"',
+        "jegyrendelés-link": "jegyrendeles/",
+        "film-JSON (var movies)": "var movies",
+    }
+    gyanus = {
+        "Cloudflare": "cloudflare",
+        "robotellenőrzés": "captcha",
+        "sütifal": "cookie-consent",
+        "átirányítás": "<meta http-equiv=\"refresh\"",
+    }
+    sorok = [f"a kapott oldal merete: {len(oldal)} karakter"]
+    sorok.append("varhato jelek: " + ", ".join(
+        f"{nev}={'van' if minta in oldal else 'NINCS'}"
+        for nev, minta in jelek.items()))
+    talalt = [nev for nev, minta in gyanus.items() if minta in oldal.lower()]
+    if talalt:
+        sorok.append("GYANUS: " + ", ".join(talalt) +
+                     " — valoszinuleg nem a musort kaptuk meg")
+    cim = re.search(r"<title[^>]*>([^<]{0,120})", oldal, re.I)
+    if cim:
+        sorok.append(f"az oldal cime: {cim.group(1).strip()!r}")
+    sorok.append("az elso 200 karakter: "
+                 + re.sub(r"\s+", " ", oldal[:200]))
+    return sorok
 
 
 def jellemzo_illeszkedik(info):
@@ -362,14 +448,25 @@ def main():
     regi = multat_nyes(korabbi or {})
 
     try:
-        mostani, filmek_info, napok, film_osszes = ertelmez(letolt(HOST + "/"))
-    except ErtelmezesiHiba as e:
-        # Ez NEM „nincs vetítés" — ez azt jelenti, hogy az oldal átalakult.
-        # Hibával lépünk ki, hogy a futás pirosra váltson és feltűnjön.
-        print(f"[HIBA] nem tudom ertelmezni a cinemamom.hu oldalat: {e}\n"
-              f"       A muster-figyelo ilyenkor NEM nemul el csendben: az "
-              f"ertelmezo mintait kell javitani a mom.py tetejen.",
+        oldal = letolt(HOST + "/")
+    except RuntimeError as e:
+        print(f"[HIBA] nem tudom letolteni a cinemamom.hu oldalat: {e}",
               file=sys.stderr)
+        return 1
+
+    try:
+        mostani, filmek_info, napok, film_osszes = ertelmez(oldal)
+    except ErtelmezesiHiba as e:
+        # Ez NEM „nincs vetítés" — ez azt jelenti, hogy mást kaptunk, mint
+        # amire számítunk. Hibával lépünk ki, hogy a futás pirosra váltson.
+        # A diagnosztika azért kell, hogy a naplóból AZONNAL kiderüljön, mi
+        # történt: átalakult az oldal, vagy sütifalat/robotvédelmet kaptunk.
+        print(f"[HIBA] nem tudom ertelmezni a cinemamom.hu oldalat: {e}",
+              file=sys.stderr)
+        for sor in diagnosztika(oldal):
+            print(f"       {sor}", file=sys.stderr)
+        print("       Ha a jelek megvannak, de a szerkezet mas: a mom.py "
+              "tetejen az RE_ kezdetu mintakat kell javitani.", file=sys.stderr)
         return 1
 
     ujak = {k: v for k, v in mostani.items() if k not in regi}
