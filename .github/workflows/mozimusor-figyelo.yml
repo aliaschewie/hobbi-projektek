@@ -6,12 +6,15 @@ name: Cinema City műsorfigyelő
 
 on:
   schedule:
-    # 5 percenként — ez a GitHub Actions legsűrűbb megengedett ütemezése.
-    # A bevett `*/5` alakot használjuk; a listás felsorolás (2,7,12,…) elvileg
-    # szintén szabályos, de ezt dolgozza fel biztosan a GitHub ütemezője.
-    # A futások amúgy is késnek pár percet, nagy terhelésnél ki is maradnak —
-    # ez a GitHubnál normális, nem a mi hibánk.
-    - cron: "*/5 * * * *"
+    # 15 percenként. Az 5 perc a GitHub által elfogadott minimum, de ingyenes
+    # repóknál a nagyon sűrű ütemezéseket hátrasorolják, és a gyakorlatban el
+    # sem indultak. A 15 perc megbízhatóbban lefut, és bőven elég: a mozi
+    # hetente írja ki a műsort, nem percenként.
+    #
+    # A GitHub ütemezése amúgy sem pontos — nagy terhelésnél késik, néha ki is
+    # hagy egy fordulót. Ez nem a mi hibánk, és nem is baj: az állapotot a
+    # seen.json őrzi, tehát semmi nem vész el a kihagyott futáson.
+    - cron: "*/15 * * * *"
 
   workflow_dispatch:
     inputs:
