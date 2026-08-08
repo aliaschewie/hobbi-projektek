@@ -1,5 +1,5 @@
 {
- "frissitve": "2026-08-07T20:09:47Z",
+ "frissitve": "2026-08-08T08:08:41Z",
  "mozi_neve": "arena",
  "mozi_szama": "1132",
  "mod": "film",
@@ -11,17 +11,6 @@
  ],
  "teljes_min": 15,
  "adat": {
-  "308979": {
-   "kezdes": "2026-08-08T10:00:00",
-   "film": "Odüsszeia",
-   "film_id": "7460d2r",
-   "terem": "IMAX terem",
-   "jellemzok": [
-    "IMAX",
-    "feliratos"
-   ],
-   "link": "https://www.cinemacity.hu/hu/booking-router/launch/308979?lang=hu"
-  },
   "308983": {
    "kezdes": "2026-08-08T17:00:00",
    "film": "Odüsszeia",
