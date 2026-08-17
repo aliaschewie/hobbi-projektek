@@ -1,5 +1,5 @@
 {
- "frissitve": "2026-08-17T08:03:16Z",
+ "frissitve": "2026-08-17T18:00:42Z",
  "mozi_neve": "arena",
  "mozi_szama": "1132",
  "mod": "film",
@@ -32,6 +32,149 @@
     "feliratos"
    ],
    "link": "https://www.cinemacity.hu/hu/booking-router/launch/313334?lang=hu"
+  },
+  "320959": {
+   "kezdes": "2026-08-20T10:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/320959?lang=hu"
+  },
+  "320974": {
+   "kezdes": "2026-08-20T17:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/320974?lang=hu"
+  },
+  "321024": {
+   "kezdes": "2026-08-21T13:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321024?lang=hu"
+  },
+  "321066": {
+   "kezdes": "2026-08-21T20:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321066?lang=hu"
+  },
+  "321072": {
+   "kezdes": "2026-08-22T10:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321072?lang=hu"
+  },
+  "321077": {
+   "kezdes": "2026-08-22T17:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321077?lang=hu"
+  },
+  "321087": {
+   "kezdes": "2026-08-23T13:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321087?lang=hu"
+  },
+  "321091": {
+   "kezdes": "2026-08-23T20:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321091?lang=hu"
+  },
+  "321092": {
+   "kezdes": "2026-08-24T10:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321092?lang=hu"
+  },
+  "321097": {
+   "kezdes": "2026-08-24T17:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321097?lang=hu"
+  },
+  "321103": {
+   "kezdes": "2026-08-25T11:45:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321103?lang=hu"
+  },
+  "321112": {
+   "kezdes": "2026-08-25T21:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321112?lang=hu"
+  },
+  "321120": {
+   "kezdes": "2026-08-26T15:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/321120?lang=hu"
   }
  }
 }
