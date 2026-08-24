@@ -1,5 +1,5 @@
 {
- "frissitve": "2026-08-24T16:06:15Z",
+ "frissitve": "2026-08-24T21:00:43Z",
  "mozi_neve": "arena",
  "mozi_szama": "1132",
  "mod": "film",
@@ -43,6 +43,83 @@
     "feliratos"
    ],
    "link": "https://www.cinemacity.hu/hu/booking-router/launch/321120?lang=hu"
+  },
+  "327812": {
+   "kezdes": "2026-08-27T10:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327812?lang=hu"
+  },
+  "327818": {
+   "kezdes": "2026-08-28T17:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327818?lang=hu"
+  },
+  "327823": {
+   "kezdes": "2026-08-30T17:00:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327823?lang=hu"
+  },
+  "327826": {
+   "kezdes": "2026-08-29T11:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327826?lang=hu"
+  },
+  "327831": {
+   "kezdes": "2026-08-31T11:30:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327831?lang=hu"
+  },
+  "327838": {
+   "kezdes": "2026-09-01T17:10:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327838?lang=hu"
+  },
+  "327844": {
+   "kezdes": "2026-09-02T11:50:00",
+   "film": "Odüsszeia",
+   "film_id": "7460d2r",
+   "terem": "IMAX terem",
+   "jellemzok": [
+    "IMAX",
+    "feliratos"
+   ],
+   "link": "https://www.cinemacity.hu/hu/booking-router/launch/327844?lang=hu"
   }
  }
 }
